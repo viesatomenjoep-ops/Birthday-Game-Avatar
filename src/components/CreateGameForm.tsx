@@ -71,7 +71,7 @@ export default function CreateGameForm() {
             name="childName"
             type="text"
             maxLength={40}
-            placeholder="Bijv. Vive"
+            placeholder="Bijv. Vieve"
             required
             className={inputClass(!!errors.childName)}
           />
