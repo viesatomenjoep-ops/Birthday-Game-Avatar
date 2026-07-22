@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "birthday-game",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/tomvanbiene/Desktop/Birthday-Game-Avatar",
+      "port": 3000
+    }
+  ]
+}
