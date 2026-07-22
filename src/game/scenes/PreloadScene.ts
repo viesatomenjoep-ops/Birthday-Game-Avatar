@@ -30,10 +30,120 @@ export class PreloadScene extends Phaser.Scene {
     this.generateSparkTexture();
     this.generateConfettiTextures();
     this.generateGlowTexture();
+    this.generateBalloonTextures();
+    this.generateStarTexture();
+    this.generateCandleTextures();
+    this.generateFlameTexture();
+    this.generateObstacleTexture();
+    this.generateCandyTexture();
     if (this.registry.get("avatarFailed")) {
       this.generateFallbackAvatar();
     }
-    this.scene.start("Game");
+    // De React-laag bepaalt via het menu welk spel start; hier tonen we het
+    // rustige Idle-decor als achtergrond voor dat menu.
+    this.scene.start("Idle");
+  }
+
+  /** Ballonnen in vier feestkleuren met knoopje. */
+  private generateBalloonTextures() {
+    const colors = [0xf94144, 0xf3722c, 0x577590, 0x43aa8b];
+    colors.forEach((color, index) => {
+      const w = 64;
+      const h = 86;
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      g.fillStyle(color, 1);
+      g.fillEllipse(w / 2, h / 2 - 8, w - 8, h - 22);
+      // Glans
+      g.fillStyle(0xffffff, 0.3);
+      g.fillEllipse(w / 2 - 10, h / 2 - 20, 12, 20);
+      // Knoopje
+      g.fillStyle(color, 1);
+      g.fillTriangle(w / 2 - 6, h - 22, w / 2 + 6, h - 22, w / 2, h - 12);
+      g.generateTexture(`balloon-${index}`, w, h);
+      g.destroy();
+    });
+  }
+
+  /** Grote gele vijfpuntige ster. */
+  private generateStarTexture() {
+    const size = 56;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    const cx = size / 2;
+    const cy = size / 2;
+    const spikes = 5;
+    const outer = size / 2 - 3;
+    const inner = outer * 0.45;
+    const points: Phaser.Geom.Point[] = [];
+    for (let i = 0; i < spikes * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner;
+      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+      points.push(new Phaser.Geom.Point(cx + Math.cos(a) * r, cy + Math.sin(a) * r));
+    }
+    g.fillStyle(0xffd166, 1);
+    g.fillPoints(points, true);
+    g.fillStyle(0xffffff, 0.35);
+    g.fillCircle(cx - 6, cy - 6, 5);
+    g.generateTexture("star", size, size);
+    g.destroy();
+  }
+
+  /** Kaars (stokje met streepjes) — de vlam is een aparte sprite. */
+  private generateCandleTextures() {
+    const w = 16;
+    const h = 44;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0xfff0f5, 1);
+    g.fillRoundedRect(2, 6, w - 4, h - 6, 4);
+    g.fillStyle(0xff6fb5, 1);
+    g.fillRect(2, 14, w - 4, 5);
+    g.fillRect(2, 26, w - 4, 5);
+    g.fillStyle(0x2d1b4e, 1);
+    g.fillRect(w / 2 - 1, 0, 2, 8); // lont
+    g.generateTexture("candle", w, h);
+    g.destroy();
+  }
+
+  /** Vlammetje boven een kaars. */
+  private generateFlameTexture() {
+    const w = 18;
+    const h = 26;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0xff8c42, 1);
+    g.fillEllipse(w / 2, h / 2 + 3, w - 2, h - 4);
+    g.fillStyle(0xffd166, 1);
+    g.fillEllipse(w / 2, h / 2 + 6, w - 8, h - 12);
+    g.generateTexture("flame", w, h);
+    g.destroy();
+  }
+
+  /** Hindernis voor het ren-spel (vrolijke paaltjes). */
+  private generateObstacleTexture() {
+    const w = 46;
+    const h = 60;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0x9b59b6, 1);
+    g.fillRoundedRect(0, 0, w, h, 8);
+    g.fillStyle(0xffffff, 0.85);
+    for (let i = 0; i < 3; i++) {
+      g.fillTriangle(4, 12 + i * 18, w - 4, 4 + i * 18, w - 4, 22 + i * 18);
+    }
+    g.generateTexture("obstacle", w, h);
+    g.destroy();
+  }
+
+  /** Snoepje voor het ren-spel. */
+  private generateCandyTexture() {
+    const size = 36;
+    const g = this.make.graphics({ x: 0, y: 0 }, false);
+    g.fillStyle(0xff6fb5, 1);
+    g.fillCircle(size / 2, size / 2, size / 2 - 8);
+    // Wikkels
+    g.fillTriangle(2, size / 2 - 8, 12, size / 2, 2, size / 2 + 8);
+    g.fillTriangle(size - 2, size / 2 - 8, size - 12, size / 2, size - 2, size / 2 + 8);
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(size / 2 - 4, size / 2 - 4, 4);
+    g.generateTexture("candy", size, size);
+    g.destroy();
   }
 
   /** Drie cadeau-varianten met lint, strik en golden-hour glans. */

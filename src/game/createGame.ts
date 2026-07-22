@@ -1,13 +1,18 @@
 import Phaser from "phaser";
 import type { GameConfig } from "./types";
+import { GAMES } from "./types";
 import { PreloadScene } from "./scenes/PreloadScene";
-import { GameScene } from "./scenes/GameScene";
+import { IdleScene } from "./scenes/IdleScene";
+import { GiftCatchScene } from "./scenes/GiftCatchScene";
+import { BalloonPopScene } from "./scenes/BalloonPopScene";
+import { CandleBlowScene } from "./scenes/CandleBlowScene";
+import { CandyRunScene } from "./scenes/CandyRunScene";
+import { StarCatchScene } from "./scenes/StarCatchScene";
 import { EndScene } from "./scenes/EndScene";
 
 /**
- * Boot de Phaser-game in een DOM-container. De GameConfig (avatar-URL, naam,
- * leeftijd, datum) komt vanuit Next.js en wordt via de scene-registry
- * doorgegeven aan alle scenes.
+ * Boot de Phaser-game. De React-laag (GameCanvas) bepaalt via `startGame`/
+ * `backToMenu` welke scene actief is; `onFinish` laat React de uitnodiging tonen.
  */
 export function createGame(
   parent: HTMLElement,
@@ -16,12 +21,10 @@ export function createGame(
   onFinish: () => void
 ): Phaser.Game {
   const game = new Phaser.Game({
-    type: Phaser.AUTO, // WebGL waar mogelijk, Canvas-fallback
+    type: Phaser.AUTO,
     parent,
     backgroundColor: "#2d1b4e",
     scale: {
-      // RESIZE + het CSS-fullscreen wrapper-element = perfect passend op
-      // elke smartphone-verhouding, ook in de WhatsApp in-app browser.
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
@@ -29,19 +32,49 @@ export function createGame(
       default: "arcade",
       arcade: { debug: false },
     },
-    render: {
-      antialias: true,
-      roundPixels: false,
-    },
+    render: { antialias: true, roundPixels: false },
     fps: { target: 60 },
-    scene: [PreloadScene, GameScene, EndScene],
+    scene: [
+      PreloadScene,
+      IdleScene,
+      GiftCatchScene,
+      BalloonPopScene,
+      CandleBlowScene,
+      CandyRunScene,
+      StarCatchScene,
+      EndScene,
+    ],
   });
 
   game.registry.set("gameConfig", config);
-  // Callback die de GameScene aanroept als de 25s voorbij zijn — de React-laag
-  // toont dan de HTML-uitnodiging.
   game.registry.set("onFinish", onFinish);
   game.events.once("ready", onReady);
 
   return game;
+}
+
+const ALL_SCENE_KEYS = [
+  "Idle",
+  "End",
+  ...GAMES.map((g) => g.sceneKey),
+];
+
+/** Stop alle actieve spel-scenes en start één specifieke spel-scene. */
+export function startGame(game: Phaser.Game, sceneKey: string) {
+  ALL_SCENE_KEYS.forEach((key) => {
+    if (game.scene.isActive(key) || game.scene.isPaused(key)) {
+      game.scene.stop(key);
+    }
+  });
+  game.scene.start(sceneKey);
+}
+
+/** Terug naar het rustige menu-decor. */
+export function backToMenu(game: Phaser.Game) {
+  ALL_SCENE_KEYS.forEach((key) => {
+    if (game.scene.isActive(key) || game.scene.isPaused(key)) {
+      game.scene.stop(key);
+    }
+  });
+  game.scene.start("Idle");
 }
