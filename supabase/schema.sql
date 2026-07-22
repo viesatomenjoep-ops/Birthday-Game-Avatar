@@ -9,8 +9,14 @@ create table if not exists public.games (
   party_date date not null,
   party_time time not null,
   avatar_url text not null,
+  costume text,
+  invitation jsonb,
   created_at timestamptz not null default now()
 );
+
+-- Migratie voor bestaande projecten (kolommen toevoegen als ze nog ontbreken):
+alter table public.games add column if not exists costume text;
+alter table public.games add column if not exists invitation jsonb;
 
 create index if not exists games_slug_idx on public.games (slug);
 

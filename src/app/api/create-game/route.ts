@@ -38,6 +38,48 @@ function validateFields(formData: FormData): {
   return { errors, values: { childName, age, partyDate, partyTime } };
 }
 
+const ALLOWED_COSTUMES = ["none", "prinses", "clown", "piraat"];
+
+function parseCostume(formData: FormData): string {
+  const c = String(formData.get("costume") ?? "none").trim();
+  return ALLOWED_COSTUMES.includes(c) ? c : "none";
+}
+
+/** Bouwt de uitnodiging uit de losse tekstvelden (regels gesplitst op newline). */
+function parseInvitation(formData: FormData) {
+  const clean = (v: FormDataEntryValue | null, max = 400) =>
+    String(v ?? "").trim().slice(0, max);
+  const toLines = (v: FormDataEntryValue | null) =>
+    clean(v)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+  const greeting = clean(formData.get("greeting"), 80);
+  const slogan = clean(formData.get("slogan"), 60);
+  const sectionDefs: { label: string; field: string }[] = [
+    { label: "Wanneer?", field: "whenText" },
+    { label: "Hoe laat?", field: "timeText" },
+    { label: "Ophalen?", field: "pickupText" },
+  ];
+
+  const sections = sectionDefs
+    .map((s) => ({ label: s.label, lines: toLines(formData.get(s.field)) }))
+    .filter((s) => s.lines.length > 0);
+
+  const invitation: {
+    greeting?: string;
+    sections?: { label: string; lines: string[] }[];
+    slogan?: string;
+  } = {};
+  if (greeting) invitation.greeting = greeting;
+  if (sections.length) invitation.sections = sections;
+  if (slogan) invitation.slogan = slogan;
+
+  return Object.keys(invitation).length ? invitation : null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -103,6 +145,8 @@ export async function POST(request: NextRequest) {
         party_date: values.partyDate,
         party_time: values.partyTime,
         avatar_url: avatarUrl,
+        costume: parseCostume(formData),
+        invitation: parseInvitation(formData),
       });
     } catch (error) {
       console.error("Save game error:", error);

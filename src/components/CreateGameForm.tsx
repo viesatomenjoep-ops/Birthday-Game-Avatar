@@ -10,14 +10,18 @@ import {
   Loader2,
   PartyPopper,
   User,
+  Wand2,
+  PenLine,
 } from "lucide-react";
 import PhotoDropzone from "./PhotoDropzone";
+import { COSTUMES } from "@/game/types";
 
 type FieldErrors = Record<string, string>;
 
 export default function CreateGameForm() {
   const router = useRouter();
   const [photo, setPhoto] = useState<File | null>(null);
+  const [costume, setCostume] = useState("none");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,6 +35,7 @@ export default function CreateGameForm() {
       return;
     }
     formData.set("photo", photo);
+    formData.set("costume", costume);
 
     setIsSubmitting(true);
     try {
@@ -148,6 +153,111 @@ export default function CreateGameForm() {
           Portretfoto voor de avatar
         </label>
         <PhotoDropzone onFileSelected={setPhoto} error={errors.photo} />
+      </div>
+
+      {/* Kostuum */}
+      <div>
+        <label className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-slate-700">
+          <Wand2 className="h-4 w-4 text-brand-500" />
+          Kies een kostuum (pixel-art poppetje)
+        </label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {COSTUMES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCostume(c.id)}
+              className={`flex flex-col items-center gap-1 rounded-2xl border-2 p-3 transition active:scale-95 ${
+                costume === c.id
+                  ? "border-brand-500 bg-brand-50"
+                  : "border-slate-200 bg-white hover:border-brand-300"
+              }`}
+            >
+              <span className="text-2xl">{c.emoji}</span>
+              <span className="text-xs font-bold text-slate-600">{c.label}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-slate-500">
+          Het hoofd van het kind komt op een kostuumlijf. Kies &quot;Geen&quot; voor
+          alleen de foto.
+        </p>
+      </div>
+
+      {/* Eigen uitnodigingstekst */}
+      <div className="space-y-3 rounded-2xl bg-brand-50/50 p-4">
+        <p className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+          <PenLine className="h-4 w-4 text-brand-500" />
+          Eigen uitnodigingstekst{" "}
+          <span className="font-normal text-slate-400">(optioneel)</span>
+        </p>
+
+        <div>
+          <label htmlFor="greeting" className="mb-1 block text-xs font-bold text-slate-600">
+            Uitnodigingszin
+          </label>
+          <input
+            id="greeting"
+            name="greeting"
+            type="text"
+            maxLength={80}
+            placeholder="Kom jij ook naar mijn kinderfeestje?"
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-brand-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="whenText" className="mb-1 block text-xs font-bold text-slate-600">
+            Wanneer? <span className="font-normal text-slate-400">(1 regel per zin)</span>
+          </label>
+          <textarea
+            id="whenText"
+            name="whenText"
+            rows={2}
+            placeholder={"Woensdag 2 september\nNa school gaan we samen naar Kids Wonderland!"}
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-brand-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="timeText" className="mb-1 block text-xs font-bold text-slate-600">
+            Hoe laat?
+          </label>
+          <textarea
+            id="timeText"
+            name="timeText"
+            rows={2}
+            placeholder={"Het feestje is om 17.00 uur afgelopen.\nDaarna eten we frietjes!"}
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-brand-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="pickupText" className="mb-1 block text-xs font-bold text-slate-600">
+            Ophalen?
+          </label>
+          <textarea
+            id="pickupText"
+            name="pickupText"
+            rows={2}
+            placeholder="Mama's of papa's mogen jou om 17.00 uur ophalen."
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-brand-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="slogan" className="mb-1 block text-xs font-bold text-slate-600">
+            Slogan
+          </label>
+          <input
+            id="slogan"
+            name="slogan"
+            type="text"
+            maxLength={60}
+            placeholder="We hebben er zin in!"
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-brand-500"
+          />
+        </div>
       </div>
 
       {errors.form && (

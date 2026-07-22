@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { GameConfig } from "../types";
+import { buildCostumeCanvas } from "../costumes";
 
 /**
  * Laadt de dynamische avatar (Cloudinary) en genereert alle overige textures
@@ -13,13 +14,14 @@ export class PreloadScene extends Phaser.Scene {
   preload() {
     const config = this.registry.get("gameConfig") as GameConfig;
 
-    // Dynamische avatar via externe Cloudinary/Supabase URL (CORS-safe).
+    // Dynamische foto via externe Cloudinary/Supabase URL (CORS-safe). Het
+    // uitgeknipte hoofd hieruit gaat straks op het kostuumlijf.
     this.load.crossOrigin = "anonymous";
-    this.load.image("avatar", config.avatarUrl);
+    this.load.image("avatarPhoto", config.avatarUrl);
 
-    // Als de avatar niet laadt (bijv. offline), gebruiken we een fallback.
+    // Als de foto niet laadt (bijv. offline), gebruiken we een fallback.
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
-      if (file.key === "avatar") {
+      if (file.key === "avatarPhoto") {
         this.registry.set("avatarFailed", true);
       }
     });
@@ -36,12 +38,53 @@ export class PreloadScene extends Phaser.Scene {
     this.generateFlameTexture();
     this.generateObstacleTexture();
     this.generateCandyTexture();
-    if (this.registry.get("avatarFailed")) {
-      this.generateFallbackAvatar();
-    }
+    this.buildAvatar();
     // De React-laag bepaalt via het menu welk spel start; hier tonen we het
     // rustige Idle-decor als achtergrond voor dat menu.
     this.scene.start("Idle");
+  }
+
+  /**
+   * Stelt de speelbare "avatar"-texture samen: zonder kostuum de foto zelf,
+   * met kostuum het gepixelde hoofd op een pixel-art kostuumlijf.
+   */
+  private buildAvatar() {
+    const config = this.registry.get("gameConfig") as GameConfig;
+    const costume = config.costume ?? "none";
+    const failed = Boolean(this.registry.get("avatarFailed"));
+
+    if (this.textures.exists("avatar")) this.textures.remove("avatar");
+
+    if (costume === "none") {
+      if (failed) {
+        const face = document.createElement("canvas");
+        face.width = 128;
+        face.height = 128;
+        drawFallbackFace(face.getContext("2d")!, 128);
+        this.textures.addCanvas("avatar", face);
+      } else {
+        const img = this.textures.get("avatarPhoto").getSourceImage() as HTMLImageElement;
+        this.textures.addImage("avatar", img);
+      }
+      return;
+    }
+
+    // Met kostuum: hoofd (foto of fallback) op het pixel-art lijf.
+    let photo: HTMLImageElement | HTMLCanvasElement;
+    if (failed) {
+      const face = document.createElement("canvas");
+      face.width = 128;
+      face.height = 128;
+      drawFallbackFace(face.getContext("2d")!, 128);
+      photo = face;
+    } else {
+      photo = this.textures.get("avatarPhoto").getSourceImage() as
+        | HTMLImageElement
+        | HTMLCanvasElement;
+    }
+    const canvas = buildCostumeCanvas(photo, costume);
+    const texture = this.textures.addCanvas("avatar", canvas);
+    texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
 
   /** Ballonnen in vier feestkleuren met knoopje. */
@@ -245,20 +288,23 @@ export class PreloadScene extends Phaser.Scene {
     canvas.refresh();
   }
 
-  /** Vrolijke fallback-avatar als de externe afbeelding niet laadt. */
-  private generateFallbackAvatar() {
-    const size = 128;
-    const g = this.make.graphics({ x: 0, y: 0 }, false);
-    g.fillStyle(0xffd166, 1);
-    g.fillCircle(size / 2, size / 2, size / 2 - 4);
-    g.fillStyle(0x2d1b4e, 1);
-    g.fillCircle(size / 2 - 20, size / 2 - 10, 7);
-    g.fillCircle(size / 2 + 20, size / 2 - 10, 7);
-    g.lineStyle(6, 0x2d1b4e, 1);
-    g.beginPath();
-    g.arc(size / 2, size / 2 + 8, 26, 0.15 * Math.PI, 0.85 * Math.PI);
-    g.strokePath();
-    g.generateTexture("avatar", size, size);
-    g.destroy();
-  }
+}
+
+/** Vrolijk smiley-gezicht op een canvas, als de externe foto niet laadt. */
+function drawFallbackFace(ctx: CanvasRenderingContext2D, size: number) {
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#2d1b4e";
+  ctx.beginPath();
+  ctx.arc(size / 2 - 20, size / 2 - 10, 7, 0, Math.PI * 2);
+  ctx.arc(size / 2 + 20, size / 2 - 10, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#2d1b4e";
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2 + 8, 26, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
 }

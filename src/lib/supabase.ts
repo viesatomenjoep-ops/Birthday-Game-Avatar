@@ -1,5 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+export type InvitationData = {
+  greeting?: string;
+  sections?: { label: string; lines: string[] }[];
+  slogan?: string;
+};
+
 export type GameRecord = {
   id: string;
   slug: string;
@@ -9,6 +15,8 @@ export type GameRecord = {
   party_time: string; // HH:mm
   avatar_url: string;
   created_at: string;
+  costume?: string | null;
+  invitation?: InvitationData | null;
 };
 
 function requireEnv(name: string): string {

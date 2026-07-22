@@ -21,7 +21,19 @@ export type GameConfig = {
   sections?: InvitationSection[];
   /** Vrolijke afsluiter, bijv. "We hebben er zin in!". */
   slogan?: string;
+  /** Pixel-art kostuum: "none" | "prinses" | "clown" | "piraat". */
+  costume?: string;
 };
+
+/** Kostuum-opties voor het formulier en de compositie. */
+export type CostumeMeta = { id: string; label: string; emoji: string };
+
+export const COSTUMES: CostumeMeta[] = [
+  { id: "none", label: "Geen kostuum", emoji: "🙂" },
+  { id: "prinses", label: "Prinses", emoji: "👑" },
+  { id: "clown", label: "Clown", emoji: "🤡" },
+  { id: "piraat", label: "Piraat", emoji: "🏴‍☠️" },
+];
 
 /** Speelduur voordat de uitnodiging verschijnt (milliseconden). */
 export const GAME_DURATION_MS = 25000;

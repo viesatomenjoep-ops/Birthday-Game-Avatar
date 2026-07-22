@@ -46,37 +46,61 @@ export default async function GamePage({
   const dateLabel = `${weekday} ${dayMonth}`;
   const timeLabel = game.party_time?.slice(0, 5);
 
-  // De demo bevat de volledige tekst van Vieve's uitnodiging; echte games
-  // tonen (voorlopig) de basisgegevens uit het formulier.
-  const sections = isDemo
-    ? [
-        {
-          label: "Wanneer?",
-          lines: [
-            "Woensdag 2 september",
-            "Na school gaan we samen naar Kids Wonderland!",
-          ],
-        },
-        {
-          label: "Hoe laat?",
-          lines: [
-            "Het feestje is om 17.00 uur afgelopen.",
-            "Dan zijn we om 17.15 uur weer thuis met een volle buik want we eten frietjes! 🍟",
-          ],
-        },
-        {
-          label: "Ophalen?",
-          lines: [
-            "Mama's of papa's mogen jou ook om 17.00 uur bij Kids Wonderland ophalen.",
-          ],
-        },
-      ]
-    : [
-        {
-          label: "Wanneer?",
-          lines: [`${dateLabel}${timeLabel ? ` om ${timeLabel} uur` : ""}`],
-        },
-      ];
+  // Demo: vaste voorbeeldtekst van Vieve. Echte games: de door de ouder
+  // ingevulde uitnodiging, of anders een nette basisregel met de datum.
+  const rec = game as {
+    costume?: string | null;
+    invitation?: {
+      greeting?: string;
+      sections?: { label: string; lines: string[] }[];
+      slogan?: string;
+    } | null;
+  };
+
+  let greeting = "Kom jij ook naar mijn kinderfeestje?";
+  let slogan = "We hebben er zin in!";
+  let sections: { label: string; lines: string[] }[];
+  let costume: string | undefined;
+
+  if (isDemo) {
+    costume = "clown";
+    sections = [
+      {
+        label: "Wanneer?",
+        lines: [
+          "Woensdag 2 september",
+          "Na school gaan we samen naar Kids Wonderland!",
+        ],
+      },
+      {
+        label: "Hoe laat?",
+        lines: [
+          "Het feestje is om 17.00 uur afgelopen.",
+          "Dan zijn we om 17.15 uur weer thuis met een volle buik want we eten frietjes! 🍟",
+        ],
+      },
+      {
+        label: "Ophalen?",
+        lines: [
+          "Mama's of papa's mogen jou ook om 17.00 uur bij Kids Wonderland ophalen.",
+        ],
+      },
+    ];
+  } else {
+    costume = rec.costume ?? undefined;
+    const inv = rec.invitation ?? undefined;
+    if (inv?.greeting) greeting = inv.greeting;
+    if (inv?.slogan) slogan = inv.slogan;
+    sections =
+      inv?.sections && inv.sections.length > 0
+        ? inv.sections
+        : [
+            {
+              label: "Wanneer?",
+              lines: [`${dateLabel}${timeLabel ? ` om ${timeLabel} uur` : ""}`],
+            },
+          ];
+  }
 
   return (
     <GameCanvas
@@ -85,9 +109,10 @@ export default async function GamePage({
         childName: game.child_name,
         age: game.age,
         dateLabel,
-        greeting: "Kom jij ook naar mijn kinderfeestje?",
+        greeting,
         sections,
-        slogan: "We hebben er zin in!",
+        slogan,
+        costume,
       }}
     />
   );
