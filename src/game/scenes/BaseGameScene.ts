@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_DURATION_MS, type GameConfig } from "../types";
 import { drawFestivalBackground } from "../background";
+import { AvatarRig, RIG_NATURAL_HEIGHT, RIG_NATURAL_WIDTH } from "../realisticAvatar";
 
 /**
  * Gedeelde basis voor alle spellen: golden-hour achtergrond, avatar, HUD met
@@ -13,8 +14,11 @@ export abstract class BaseGameScene extends Phaser.Scene {
   protected remaining = GAME_DURATION_MS / 1000;
   protected finished = false;
 
-  protected player?: Phaser.Physics.Arcade.Sprite;
+  protected player?: Phaser.Physics.Arcade.Image;
+  protected rig?: AvatarRig;
   protected glow?: Phaser.GameObjects.Image;
+  /** Vast middelpunt voor een decoratieve rig (geen physics). */
+  private decorCenter?: { x: number; y: number };
 
   private scoreText!: Phaser.GameObjects.Text;
   private timerText!: Phaser.GameObjects.Text;
@@ -42,9 +46,20 @@ export abstract class BaseGameScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     if (this.finished) return;
-    if (this.glow && this.player) {
+
+    // Rig meebewegen met de physics-hitbox (of het vaste decor-punt) + animeren.
+    if (this.rig) {
+      this.rig.tick(time);
+      if (this.player) {
+        this.rig.syncToCenter(this.player.x, this.player.y);
+        if (this.glow) this.glow.setPosition(this.player.x, this.player.y + 24);
+      } else if (this.decorCenter) {
+        this.rig.syncToCenter(this.decorCenter.x, this.decorCenter.y);
+      }
+    } else if (this.glow && this.player) {
       this.glow.setPosition(this.player.x, this.player.y + 10);
     }
+
     this.updateGame(time, delta);
   }
 
@@ -68,38 +83,39 @@ export abstract class BaseGameScene extends Phaser.Scene {
     this.redrawHudPills();
   }
 
-  /** Avatar onderaan die je met touch sleept (vang-spellen). */
+  /** Rig-hoogte in pixels (schaal zodat de rig `targetHeight` hoog wordt). */
+  private rigScaleFor(targetHeight: number) {
+    return targetHeight / RIG_NATURAL_HEIGHT;
+  }
+
+  /**
+   * Bestuurbare avatar: een onzichtbare physics-hitbox die je sleept, met
+   * daarop een realistische, lopende rig die het middelpunt volgt.
+   */
   protected createDraggableAvatar() {
     const { width, height } = this.scale;
+    const targetHeight = Math.min(height * 0.3, 260);
+    const scale = this.rigScaleFor(targetHeight);
+
     this.glow = this.add.image(width / 2, height - 120, "glow").setDepth(4);
 
+    // Onzichtbare hitbox = het echte bestuurbare object.
     const player = this.physics.add
-      .sprite(width / 2, height - 120, "avatar")
+      .image(width / 2, height - 120, "hitbox")
+      .setVisible(false)
       .setDepth(5)
       .setCollideWorldBounds(true);
-    this.playWalkAnim(player);
+    const bw = RIG_NATURAL_WIDTH * scale * 1.5;
+    const bh = RIG_NATURAL_HEIGHT * scale * 0.7;
+    (player.body as Phaser.Physics.Arcade.Body).setSize(bw, bh);
 
-    const targetHeight = Math.min(height * 0.26, 230);
-    const scaleFactor = targetHeight / player.height;
-    player.setScale(scaleFactor);
-    player.setTint(0xffe8cc);
-
-    const bodyWidth = player.displayWidth * 1.6;
-    const bodyHeight = player.displayHeight * 1.1;
-    (player.body as Phaser.Physics.Arcade.Body)
-      .setSize(bodyWidth / scaleFactor, bodyHeight / scaleFactor)
-      .setOffset(
-        (player.width - bodyWidth / scaleFactor) / 2,
-        (player.height - bodyHeight / scaleFactor) / 2
-      );
+    this.rig = new AvatarRig(this, width / 2, height - 120);
+    this.rig.setScale(scale).setDepth(6);
+    this.rig.walkSpeed = 1;
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (pointer.isDown && !this.finished && this.player) {
-        this.player.x = Phaser.Math.Clamp(
-          pointer.x,
-          this.player.displayWidth / 2,
-          this.scale.width - this.player.displayWidth / 2
-        );
+        this.player.x = Phaser.Math.Clamp(pointer.x, bw / 2, this.scale.width - bw / 2);
       }
     });
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
@@ -110,31 +126,18 @@ export abstract class BaseGameScene extends Phaser.Scene {
     return player;
   }
 
-  /** Decoratieve, niet-bestuurbare avatar (tik-spellen). */
-  protected createDecorAvatar(x: number, y: number, heightRatio = 0.18) {
+  /** Decoratieve, niet-bestuurbare rig die rustig ter plekke deint. */
+  protected createDecorAvatar(x: number, y: number, heightRatio = 0.2) {
     const { height } = this.scale;
-    this.glow = this.add.image(x, y + 10, "glow").setScale(0.9).setDepth(4);
-    const avatar = this.add.sprite(x, y, "avatar").setDepth(5).setTint(0xffe8cc);
-    const targetHeight = Math.min(height * heightRatio, 190);
-    avatar.setScale(targetHeight / avatar.height);
-    this.playWalkAnim(avatar);
-    // Zacht wiegen zodat de avatar "meeviert".
-    this.tweens.add({
-      targets: avatar,
-      angle: { from: -4, to: 4 },
-      duration: 1400,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
-    return avatar;
-  }
+    const targetHeight = Math.min(height * heightRatio, 210);
+    const scale = this.rigScaleFor(targetHeight);
 
-  /** Start de 2-frame loopanimatie als het kostuum die heeft. */
-  protected playWalkAnim(sprite: Phaser.GameObjects.Sprite) {
-    if (this.anims.exists("avatar-walk")) {
-      sprite.play("avatar-walk");
-    }
+    this.glow = this.add.image(x, y + 10, "glow").setScale(0.9).setDepth(4);
+    this.rig = new AvatarRig(this, x, y);
+    this.rig.setScale(scale).setDepth(5);
+    this.rig.walkSpeed = 0.55;
+    this.decorCenter = { x, y: y - 6 };
+    return this.rig;
   }
 
   private createHud() {
@@ -204,9 +207,10 @@ export abstract class BaseGameScene extends Phaser.Scene {
     this.endTimer.remove();
     this.onFinishGame();
 
-    if (this.player && this.glow) {
+    const jumpers = [this.rig, this.glow].filter(Boolean) as Phaser.GameObjects.GameObject[];
+    if (jumpers.length) {
       this.tweens.add({
-        targets: [this.player, this.glow],
+        targets: jumpers,
         y: "-=30",
         duration: 400,
         ease: "Back.easeOut",

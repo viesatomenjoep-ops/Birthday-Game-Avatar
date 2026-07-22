@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { BaseGameScene } from "./BaseGameScene";
 import { playCatchSound } from "../audio";
+import { AvatarRig, RIG_NATURAL_HEIGHT, RIG_NATURAL_WIDTH } from "../realisticAvatar";
 
 /** Snoep rennen: de avatar rent, tik om te springen over hindernissen en snoep te pakken. */
 export class CandyRunScene extends BaseGameScene {
@@ -26,29 +27,29 @@ export class CandyRunScene extends BaseGameScene {
     const ground = this.add.rectangle(width / 2, this.groundY + 8, width * 2, 16, 0x000000, 0);
     this.physics.add.existing(ground, true);
 
-    // Rennende avatar links (met loopanimatie).
-    this.glow = this.add.image(width * 0.24, this.groundY - 40, "glow").setScale(0.8).setDepth(4);
-    const avatar = this.physics.add
-      .sprite(width * 0.24, this.groundY - 60, "avatar")
-      .setDepth(5)
-      .setTint(0xffe8cc);
-    this.playWalkAnim(avatar);
-    const targetHeight = Math.min(height * 0.2, 170);
-    avatar.setScale(targetHeight / avatar.height);
-    avatar.setGravityY(1800);
-    avatar.setCollideWorldBounds(true);
-    this.physics.add.collider(avatar, ground);
-    this.player = avatar;
+    // Rennende avatar links: onzichtbare physics-hitbox + realistische rig.
+    const targetHeight = Math.min(height * 0.22, 190);
+    const scale = targetHeight / RIG_NATURAL_HEIGHT;
+    const runX = width * 0.24;
 
-    // Rennen: lichte bob.
-    this.tweens.add({
-      targets: avatar,
-      angle: { from: -5, to: 5 },
-      duration: 260,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+    this.glow = this.add.image(runX, this.groundY - 40, "glow").setScale(0.8).setDepth(4);
+
+    const hb = this.physics.add
+      .image(runX, this.groundY - 60, "hitbox")
+      .setVisible(false)
+      .setDepth(5);
+    (hb.body as Phaser.Physics.Arcade.Body).setSize(
+      RIG_NATURAL_WIDTH * scale * 1.2,
+      RIG_NATURAL_HEIGHT * scale * 0.9
+    );
+    hb.setGravityY(1800);
+    hb.setCollideWorldBounds(true);
+    this.physics.add.collider(hb, ground);
+    this.player = hb;
+
+    this.rig = new AvatarRig(this, runX, this.groundY - 60);
+    this.rig.setScale(scale).setDepth(6);
+    this.rig.walkSpeed = 1.4; // rent stevig door
 
     this.obstacles = this.physics.add.group({ allowGravity: false });
     this.candies = this.physics.add.group({ allowGravity: false });
@@ -69,10 +70,10 @@ export class CandyRunScene extends BaseGameScene {
       })
       .setDepth(8);
 
-    this.physics.add.overlap(avatar, this.candies, (_a, candy) =>
+    this.physics.add.overlap(hb, this.candies, (_a, candy) =>
       this.collectCandy(candy as Phaser.Physics.Arcade.Image)
     );
-    this.physics.add.overlap(avatar, this.obstacles, (_a, obs) =>
+    this.physics.add.overlap(hb, this.obstacles, (_a, obs) =>
       this.hitObstacle(obs as Phaser.Physics.Arcade.Image)
     );
 
@@ -143,10 +144,14 @@ export class CandyRunScene extends BaseGameScene {
   private hitObstacle(obs: Phaser.Physics.Arcade.Image) {
     if (this.finished || obs.getData("hit")) return;
     obs.setData("hit", true);
-    // Geen straf voor een 5-jarige: alleen een vrolijke flits.
-    if (this.player) {
-      this.player.setTint(0xff6fb5);
-      this.time.delayedCall(200, () => this.player?.setTint(0xffe8cc));
+    // Geen straf voor een 5-jarige: alleen een vrolijke flits + shake.
+    if (this.rig) {
+      this.tweens.add({
+        targets: this.rig,
+        alpha: 0.5,
+        duration: 100,
+        yoyo: true,
+      });
     }
     this.cameras.main.shake(120, 0.008);
   }

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { GameConfig } from "../types";
-import { buildCostumeCanvas, isAnimatable } from "../costumes";
+import { buildRigTextures } from "../realisticAvatar";
 
 /**
  * Laadt de dynamische avatar (Cloudinary) en genereert alle overige textures
@@ -45,33 +45,16 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Stelt de speelbare "avatar"-texture samen: zonder kostuum de foto zelf,
-   * met kostuum het gepixelde hoofd op een pixel-art kostuumlijf.
+   * Bouwt de realistische rig-textures: het scherpe gezicht uit de foto plus
+   * de losse lichaamsdelen (romp, armen, benen, cape) van het gekozen kostuum.
    */
   private buildAvatar() {
     const config = this.registry.get("gameConfig") as GameConfig;
     const costume = config.costume ?? "none";
     const failed = Boolean(this.registry.get("avatarFailed"));
 
-    if (this.textures.exists("avatar")) this.textures.remove("avatar");
-
-    if (costume === "none") {
-      if (failed) {
-        const face = document.createElement("canvas");
-        face.width = 128;
-        face.height = 128;
-        drawFallbackFace(face.getContext("2d")!, 128);
-        this.textures.addCanvas("avatar", face);
-      } else {
-        const img = this.textures.get("avatarPhoto").getSourceImage() as HTMLImageElement;
-        this.textures.addImage("avatar", img);
-      }
-      return;
-    }
-
-    // Met kostuum: hoofd (foto of fallback) op het pixel-art lijf.
     let photo: HTMLImageElement | HTMLCanvasElement;
-    if (failed) {
+    if (failed || !this.textures.exists("avatarPhoto")) {
       const face = document.createElement("canvas");
       face.width = 128;
       face.height = 128;
@@ -83,25 +66,7 @@ export class PreloadScene extends Phaser.Scene {
         | HTMLCanvasElement;
     }
 
-    // Twee loopframes → bewegend poppetje.
-    const frame0 = buildCostumeCanvas(photo, costume, 0);
-    const texture = this.textures.addCanvas("avatar", frame0);
-    texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
-
-    if (isAnimatable(costume)) {
-      const frame1 = buildCostumeCanvas(photo, costume, 1);
-      if (this.textures.exists("avatar-f1")) this.textures.remove("avatar-f1");
-      const t1 = this.textures.addCanvas("avatar-f1", frame1);
-      t1?.setFilter(Phaser.Textures.FilterMode.NEAREST);
-
-      if (this.anims.exists("avatar-walk")) this.anims.remove("avatar-walk");
-      this.anims.create({
-        key: "avatar-walk",
-        frames: [{ key: "avatar" }, { key: "avatar-f1" }],
-        frameRate: 5,
-        repeat: -1,
-      });
-    }
+    buildRigTextures(this, photo, costume);
   }
 
   /** Ballonnen in vier feestkleuren met knoopje. */

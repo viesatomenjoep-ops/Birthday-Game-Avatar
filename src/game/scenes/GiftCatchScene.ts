@@ -73,11 +73,12 @@ export class GiftCatchScene extends BaseGameScene {
     this.catchEmitter.explode(24, gift.x, gift.y);
     playCatchSound();
     gift.destroy();
-    if (this.player) {
+    if (this.rig) {
+      const s = this.rig.scaleX;
       this.tweens.add({
-        targets: this.player,
-        scaleX: this.player.scaleX * 1.12,
-        scaleY: this.player.scaleY * 0.92,
+        targets: this.rig,
+        scaleX: s * 1.1,
+        scaleY: s * 0.9,
         duration: 90,
         yoyo: true,
       });
