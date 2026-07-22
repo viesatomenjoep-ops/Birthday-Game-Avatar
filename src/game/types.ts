@@ -5,8 +5,14 @@ export type GameConfig = {
   avatarUrl: string;
   childName: string;
   age: number;
-  /** Bijv. "14 augustus" — al geformatteerd voor de eindtekst. */
+  /** Bijv. "woensdag 2 september" — al geformatteerd voor de eindtekst. */
   dateLabel: string;
+  /** Optionele extra feestdetails (uit de uitnodiging), getoond op het eindscherm. */
+  location?: string;
+  /** Losse regels, bijv. tijden en ophaalinfo. */
+  details?: string[];
+  /** Vrolijke afsluiter, bijv. "We hebben er zin in!". */
+  slogan?: string;
 };
 
 /** Score die nodig is om het eindscherm te bereiken. */

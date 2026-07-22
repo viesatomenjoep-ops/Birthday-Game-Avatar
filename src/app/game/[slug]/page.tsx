@@ -23,24 +23,27 @@ export default async function GamePage({
 }: {
   params: { slug: string };
 }) {
-  // /game/demo: speelbare demo zonder database (test & sales).
-  const game =
-    params.slug === "demo"
-      ? {
-          child_name: "Vive",
-          age: 5,
-          party_date: "2026-08-14",
-          party_time: "14:00",
-          avatar_url: "/demo-avatar.png", // bestaat niet → vrolijke fallback-avatar
-        }
-      : await getGameBySlug(params.slug);
+  // /game/demo: speelbare demo met de echte uitnodigingsgegevens van Vieve
+  // (zonder database — handig om te testen of te laten zien).
+  const isDemo = params.slug === "demo";
+  const game = isDemo
+    ? {
+        child_name: "Vieve",
+        age: 5,
+        party_date: "2026-09-02",
+        party_time: "17:00",
+        avatar_url: "/demo-avatar.png", // bestaat niet → vrolijke fallback-avatar
+      }
+    : await getGameBySlug(params.slug);
   if (!game) notFound();
 
   const partyDate = new Date(`${game.party_date}T00:00:00`);
-  const dateLabel = partyDate.toLocaleDateString("nl-NL", {
+  const weekday = partyDate.toLocaleDateString("nl-NL", { weekday: "long" });
+  const dayMonth = partyDate.toLocaleDateString("nl-NL", {
     day: "numeric",
     month: "long",
   });
+  const dateLabel = `${weekday} ${dayMonth}`;
 
   return (
     <GameCanvas
@@ -49,6 +52,16 @@ export default async function GamePage({
         childName: game.child_name,
         age: game.age,
         dateLabel,
+        // Extra details uit de uitnodiging (alleen ingevuld voor de demo).
+        location: isDemo ? "Kids Wonderland" : undefined,
+        details: isDemo
+          ? [
+              "Na school gaan we samen naar Kids Wonderland!",
+              "Het feestje is om 17.00 uur afgelopen — daarna eten we frietjes! 🍟",
+              "Ophalen mag om 17.00 uur bij Kids Wonderland.",
+            ]
+          : undefined,
+        slogan: isDemo ? "We hebben er zin in!" : undefined,
       }}
     />
   );
