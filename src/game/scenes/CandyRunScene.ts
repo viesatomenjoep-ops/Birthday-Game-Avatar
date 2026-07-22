@@ -32,7 +32,7 @@ export class CandyRunScene extends BaseGameScene {
       .image(width * 0.24, this.groundY - 60, "avatar")
       .setDepth(5)
       .setTint(0xffe8cc);
-    const targetHeight = Math.min(height * 0.16, 140);
+    const targetHeight = Math.min(height * 0.2, 170);
     avatar.setScale(targetHeight / avatar.height);
     avatar.setGravityY(1800);
     avatar.setCollideWorldBounds(true);

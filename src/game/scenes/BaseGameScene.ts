@@ -75,7 +75,7 @@ export abstract class BaseGameScene extends Phaser.Scene {
       .setDepth(5)
       .setCollideWorldBounds(true);
 
-    const targetHeight = Math.min(height * 0.22, 190);
+    const targetHeight = Math.min(height * 0.26, 230);
     const scaleFactor = targetHeight / player.height;
     player.setScale(scaleFactor);
     player.setTint(0xffe8cc);
@@ -107,11 +107,11 @@ export abstract class BaseGameScene extends Phaser.Scene {
   }
 
   /** Decoratieve, niet-bestuurbare avatar (tik-spellen). */
-  protected createDecorAvatar(x: number, y: number, heightRatio = 0.16) {
+  protected createDecorAvatar(x: number, y: number, heightRatio = 0.18) {
     const { height } = this.scale;
-    this.glow = this.add.image(x, y + 10, "glow").setScale(0.8).setDepth(4);
+    this.glow = this.add.image(x, y + 10, "glow").setScale(0.9).setDepth(4);
     const avatar = this.add.image(x, y, "avatar").setDepth(5).setTint(0xffe8cc);
-    const targetHeight = Math.min(height * heightRatio, 150);
+    const targetHeight = Math.min(height * heightRatio, 190);
     avatar.setScale(targetHeight / avatar.height);
     // Zacht wiegen zodat de avatar "meeviert".
     this.tweens.add({

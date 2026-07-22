@@ -9,8 +9,8 @@
 const W = 120;
 const H = 180;
 
-// Hoofd-vak boven op het lijf.
-const HEAD = { x: 34, y: 6, w: 52, h: 52 };
+// Hoofd-vak boven op het lijf (groter = gezicht duidelijker zichtbaar).
+const HEAD = { x: 26, y: 4, w: 68, h: 68 };
 
 type Ctx = CanvasRenderingContext2D;
 type Source = HTMLImageElement | HTMLCanvasElement;
@@ -35,18 +35,38 @@ export function buildCostumeCanvas(
   return canvas;
 }
 
-/** Knipt het hoofd uit de foto (boven-midden) en tekent het gepixeld. */
+/** Knipt het hoofd strak uit de foto en tekent het gepixeld op het lijf. */
 function drawPixelatedHead(ctx: Ctx, photo: Source) {
   const pw = "naturalWidth" in photo ? photo.naturalWidth || photo.width : photo.width;
   const ph = "naturalHeight" in photo ? photo.naturalHeight || photo.height : photo.height;
 
-  // Vierkante uitsnede rond het gezicht: midden-boven van de portretfoto.
-  const size = Math.min(pw, ph * 0.62);
-  const sx = (pw - size) / 2;
-  const sy = ph * 0.02;
+  let sx: number;
+  let sy: number;
+  let size: number;
+
+  // Baseer de uitsnede op waar het kind écht staat (de niet-transparante
+  // pixels van de uitgeknipte foto), zodat de transparante randen niet
+  // meetellen en het gezicht het vak vult.
+  const bounds = findOpaqueBounds(photo, pw, ph);
+  if (bounds && bounds.w > 8 && bounds.h > 8) {
+    // Hoofd zit bovenaan: strak vierkant rond het bovenste deel van de persoon.
+    size = Math.min(bounds.w * 0.86, bounds.h * 0.62);
+    const cx = bounds.x + bounds.w / 2;
+    sx = cx - size / 2;
+    sy = bounds.y + bounds.h * 0.02;
+  } else {
+    // Fallback (geen transparantie): midden-boven van de foto.
+    size = Math.min(pw, ph * 0.58);
+    sx = (pw - size) / 2;
+    sy = ph * 0.02;
+  }
+
+  // Binnen de fotogrenzen houden.
+  sx = Math.max(0, Math.min(sx, pw - size));
+  sy = Math.max(0, Math.min(sy, ph - size));
 
   // Downscale naar een pixelraster en weer omhoog = pixel-art gezicht.
-  const grid = 30;
+  const grid = 40;
   const small = document.createElement("canvas");
   small.width = grid;
   small.height = grid;
@@ -56,6 +76,56 @@ function drawPixelatedHead(ctx: Ctx, photo: Source) {
 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(small, 0, 0, grid, grid, HEAD.x, HEAD.y, HEAD.w, HEAD.h);
+}
+
+/** Bounding box van de niet-transparante pixels (op een verkleinde kopie). */
+function findOpaqueBounds(
+  photo: Source,
+  pw: number,
+  ph: number
+): { x: number; y: number; w: number; h: number } | null {
+  try {
+    const scale = Math.min(1, 220 / Math.max(pw, ph));
+    const w = Math.max(1, Math.round(pw * scale));
+    const h = Math.max(1, Math.round(ph * scale));
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const cx = c.getContext("2d")!;
+    cx.drawImage(photo, 0, 0, w, h);
+    const data = cx.getImageData(0, 0, w, h).data;
+
+    let minX = w;
+    let minY = h;
+    let maxX = 0;
+    let maxY = 0;
+    let found = false;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (data[(y * w + x) * 4 + 3] > 24) {
+          found = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (!found) return null;
+    // Als vrijwel de hele foto opaak is, is er geen zinvolle bounding box.
+    if ((maxX - minX + 1) / w > 0.97 && (maxY - minY + 1) / h > 0.97) return null;
+
+    const inv = 1 / scale;
+    return {
+      x: minX * inv,
+      y: minY * inv,
+      w: (maxX - minX + 1) * inv,
+      h: (maxY - minY + 1) * inv,
+    };
+  } catch {
+    // Getainte canvas (CORS) o.i.d. — val terug op de vaste uitsnede.
+    return null;
+  }
 }
 
 // --- pixel-helper ---
@@ -92,12 +162,12 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       px(ctx, 44, NECK_Y + 72, 4, 4, "#fff3b0");
     },
     overHead(ctx) {
-      // Kroon
-      px(ctx, HEAD.x + 6, HEAD.y - 10, 40, 8, "#ffd166");
-      px(ctx, HEAD.x + 6, HEAD.y - 18, 6, 10, "#ffd166");
-      px(ctx, HEAD.x + 23, HEAD.y - 20, 6, 12, "#ffd166");
-      px(ctx, HEAD.x + 40, HEAD.y - 18, 6, 10, "#ffd166");
-      px(ctx, HEAD.x + 24, HEAD.y - 16, 4, 4, "#ff5d8f");
+      // Kroon (breed over het hele hoofd)
+      px(ctx, HEAD.x + 8, HEAD.y - 10, 52, 8, "#ffd166");
+      px(ctx, HEAD.x + 8, HEAD.y - 18, 7, 10, "#ffd166");
+      px(ctx, HEAD.x + 30, HEAD.y - 21, 7, 13, "#ffd166");
+      px(ctx, HEAD.x + 53, HEAD.y - 18, 7, 10, "#ffd166");
+      px(ctx, HEAD.x + 31, HEAD.y - 16, 5, 5, "#ff5d8f");
     },
   },
 
@@ -133,10 +203,10 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       px(ctx, 60, NECK_Y + 98, 22, 10, "#e63946");
     },
     overHead(ctx) {
-      // Klein puntmutsje
-      px(ctx, HEAD.x + 18, HEAD.y - 12, 16, 8, "#e63946");
-      px(ctx, HEAD.x + 23, HEAD.y - 18, 6, 8, "#e63946");
-      px(ctx, HEAD.x + 24, HEAD.y - 20, 4, 4, "#ffd166");
+      // Klein puntmutsje (gecentreerd op het hoofd)
+      px(ctx, HEAD.x + 26, HEAD.y - 12, 16, 8, "#e63946");
+      px(ctx, HEAD.x + 31, HEAD.y - 18, 6, 8, "#e63946");
+      px(ctx, HEAD.x + 32, HEAD.y - 20, 4, 4, "#ffd166");
     },
   },
 
@@ -160,12 +230,12 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       px(ctx, 60, NECK_Y + 90, 18, 10, "#1a120b");
     },
     overHead(ctx) {
-      // Piratenhoed
-      px(ctx, HEAD.x - 6, HEAD.y - 8, 64, 10, "#1a120b");
-      px(ctx, HEAD.x + 6, HEAD.y - 16, 40, 10, "#1a120b");
+      // Piratenhoed (breder dan het hoofd)
+      px(ctx, HEAD.x - 4, HEAD.y - 8, 76, 10, "#1a120b");
+      px(ctx, HEAD.x + 12, HEAD.y - 16, 44, 10, "#1a120b");
       // Doodshoofd
-      px(ctx, HEAD.x + 22, HEAD.y - 14, 8, 6, "#f5f0e6");
-      px(ctx, HEAD.x + 23, HEAD.y - 8, 6, 3, "#f5f0e6");
+      px(ctx, HEAD.x + 30, HEAD.y - 14, 8, 6, "#f5f0e6");
+      px(ctx, HEAD.x + 31, HEAD.y - 8, 6, 3, "#f5f0e6");
     },
   },
 };

@@ -17,7 +17,7 @@ export class BalloonPopScene extends BaseGameScene {
   }
 
   protected setupGame() {
-    this.createDecorAvatar(this.scale.width / 2, this.scale.height - 90, 0.13);
+    this.createDecorAvatar(this.scale.width / 2, this.scale.height - 100, 0.17);
 
     this.balloons = this.physics.add.group();
     this.spawnTimer = this.time.addEvent({
