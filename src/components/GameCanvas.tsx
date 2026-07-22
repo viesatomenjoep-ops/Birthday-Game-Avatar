@@ -132,6 +132,25 @@ export default function GameCanvas({ config }: { config: GameConfig }) {
                   </span>
                 </span>
               </a>
+
+              {/* Achtbaan (beta) */}
+              <a
+                href={`/coaster?name=${encodeURIComponent(config.childName)}`}
+                className="flex items-center gap-4 rounded-2xl border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-brand-50 p-4 text-left transition hover:border-amber-400 active:scale-[0.98]"
+              >
+                <span className="text-3xl">🎢</span>
+                <span className="flex-1">
+                  <span className="block font-extrabold text-slate-800">
+                    Achtbaan{" "}
+                    <span className="rounded bg-amber-500 px-1.5 py-0.5 align-middle text-[10px] font-black uppercase text-white">
+                      beta
+                    </span>
+                  </span>
+                  <span className="block text-sm text-slate-500">
+                    Zoef mee over de rails vol heuvels en duiken
+                  </span>
+                </span>
+              </a>
             </div>
           </div>
         </div>
