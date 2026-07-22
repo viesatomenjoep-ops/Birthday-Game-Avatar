@@ -12,11 +12,15 @@ import {
   User,
   Wand2,
   PenLine,
+  Scissors,
+  CheckCircle2,
 } from "lucide-react";
 import PhotoDropzone from "./PhotoDropzone";
 import { COSTUMES } from "@/game/types";
+import { removeBackgroundClient } from "@/lib/client-bg-removal";
 
 type FieldErrors = Record<string, string>;
+type BgStatus = "idle" | "processing" | "done" | "error";
 
 export default function CreateGameForm() {
   const router = useRouter();
@@ -24,6 +28,36 @@ export default function CreateGameForm() {
   const [costume, setCostume] = useState("none");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bgStatus, setBgStatus] = useState<BgStatus>("idle");
+  const [bgProgress, setBgProgress] = useState(0);
+  const [cutoutPreview, setCutoutPreview] = useState<string | null>(null);
+
+  async function handlePhoto(file: File | null) {
+    setErrors((e) => ({ ...e, photo: "" }));
+    if (cutoutPreview) URL.revokeObjectURL(cutoutPreview);
+
+    if (!file) {
+      setPhoto(null);
+      setCutoutPreview(null);
+      setBgStatus("idle");
+      return;
+    }
+
+    setBgStatus("processing");
+    setBgProgress(0);
+    try {
+      const cutout = await removeBackgroundClient(file, setBgProgress);
+      setPhoto(cutout);
+      setCutoutPreview(URL.createObjectURL(cutout));
+      setBgStatus("done");
+    } catch (error) {
+      console.error("Background removal (client) mislukt:", error);
+      // Val terug op de originele foto zodat je toch verder kunt.
+      setPhoto(file);
+      setCutoutPreview(URL.createObjectURL(file));
+      setBgStatus("error");
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,12 +181,69 @@ export default function CreateGameForm() {
         </div>
       </div>
 
-      {/* Foto-upload */}
+      {/* Foto-upload + gratis achtergrond verwijderen (in de browser) */}
       <div>
         <label className="mb-1.5 block text-sm font-bold text-slate-700">
           Portretfoto voor de avatar
         </label>
-        <PhotoDropzone onFileSelected={setPhoto} error={errors.photo} />
+        <PhotoDropzone onFileSelected={handlePhoto} error={errors.photo} />
+
+        {bgStatus === "processing" && (
+          <div className="mt-3 rounded-2xl bg-brand-50 p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-brand-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Achtergrond verwijderen… {Math.round(bgProgress * 100)}%
+            </p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-brand-100">
+              <div
+                className="h-full rounded-full bg-brand-500 transition-all"
+                style={{ width: `${Math.max(5, bgProgress * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              De eerste keer duurt dit even (het AI-model wordt gedownload). Alles
+              gebeurt op je eigen apparaat — gratis en privé.
+            </p>
+          </div>
+        )}
+
+        {bgStatus !== "processing" && cutoutPreview && (
+          <div className="mt-3 flex items-center gap-4 rounded-2xl bg-slate-50 p-3">
+            {/* Ruit-achtergrond maakt de transparantie zichtbaar */}
+            <div
+              className="h-24 w-24 shrink-0 rounded-xl"
+              style={{
+                backgroundImage:
+                  "linear-gradient(45deg,#e2e8f0 25%,transparent 25%),linear-gradient(-45deg,#e2e8f0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e2e8f0 75%),linear-gradient(-45deg,transparent 75%,#e2e8f0 75%)",
+                backgroundSize: "14px 14px",
+                backgroundPosition: "0 0,0 7px,7px -7px,-7px 0",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cutoutPreview}
+                alt="Avatar met verwijderde achtergrond"
+                className="h-24 w-24 object-contain"
+              />
+            </div>
+            <div className="text-sm">
+              {bgStatus === "done" ? (
+                <p className="flex items-center gap-1.5 font-bold text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Achtergrond verwijderd!
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 font-bold text-amber-600">
+                  <Scissors className="h-4 w-4" />
+                  Uitsnijden lukte niet — originele foto wordt gebruikt.
+                </p>
+              )}
+              <p className="mt-0.5 text-xs text-slate-500">
+                Dit wordt de avatar in de game.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kostuum */}
@@ -268,7 +359,7 @@ export default function CreateGameForm() {
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || bgStatus === "processing"}
         className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-4 text-lg font-extrabold text-white shadow-xl shadow-brand-500/25 transition hover:from-brand-500 hover:to-brand-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isSubmitting ? (
