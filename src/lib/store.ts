@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { createServiceClient, getGameBySlug as getGameFromSupabase } from "./supabase";
+import { createServiceClient } from "./supabase";
 import { uploadAvatar } from "./cloudinary";
 import type { GameRecord } from "./supabase";
 
@@ -69,7 +69,27 @@ export async function saveGame(record: NewGame): Promise<void> {
 /** Haal een game op via slug (Supabase of lokaal JSON-bestand). */
 export async function getGame(slug: string): Promise<GameRecord | null> {
   if (isSupabaseConfigured()) {
-    return getGameFromSupabase(slug);
+    // Server-side read met de service-role client. Deze pagina's zijn altijd
+    // server components, dus de key lekt nooit naar de browser. Bewust NIET de
+    // anon-client: die hangt aan een NEXT_PUBLIC_-variabele die Next.js bij de
+    // build vastzet, wat op Vercel onbetrouwbaar is. De service-role read werkt
+    // identiek aan het schrijven, dat op Vercel al bewezen werkt.
+    try {
+      const supabase = createServiceClient();
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) {
+        console.error("Supabase getGame error:", error.message);
+        return null;
+      }
+      return (data as GameRecord | null) ?? null;
+    } catch (error) {
+      console.error("Supabase getGame client error:", error);
+      return null;
+    }
   }
   const games = await readLocalGames();
   return games.find((g) => g.slug === slug) ?? null;
