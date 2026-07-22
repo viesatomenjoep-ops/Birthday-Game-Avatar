@@ -113,6 +113,25 @@ export default function GameCanvas({ config }: { config: GameConfig }) {
                   </span>
                 </button>
               ))}
+
+              {/* 3D-wereld (beta) */}
+              <a
+                href={`/world?name=${encodeURIComponent(config.childName)}`}
+                className="flex items-center gap-4 rounded-2xl border-2 border-brand-200 bg-gradient-to-r from-brand-50 to-amber-50 p-4 text-left transition hover:border-brand-400 active:scale-[0.98]"
+              >
+                <span className="text-3xl">🌍</span>
+                <span className="flex-1">
+                  <span className="block font-extrabold text-slate-800">
+                    3D-wereld{" "}
+                    <span className="rounded bg-brand-500 px-1.5 py-0.5 align-middle text-[10px] font-black uppercase text-white">
+                      beta
+                    </span>
+                  </span>
+                  <span className="block text-sm text-slate-500">
+                    Loop vrij rond en verzamel cadeautjes
+                  </span>
+                </span>
+              </a>
             </div>
           </div>
         </div>
