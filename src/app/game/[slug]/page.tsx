@@ -44,6 +44,39 @@ export default async function GamePage({
     month: "long",
   });
   const dateLabel = `${weekday} ${dayMonth}`;
+  const timeLabel = game.party_time?.slice(0, 5);
+
+  // De demo bevat de volledige tekst van Vieve's uitnodiging; echte games
+  // tonen (voorlopig) de basisgegevens uit het formulier.
+  const sections = isDemo
+    ? [
+        {
+          label: "Wanneer?",
+          lines: [
+            "Woensdag 2 september",
+            "Na school gaan we samen naar Kids Wonderland!",
+          ],
+        },
+        {
+          label: "Hoe laat?",
+          lines: [
+            "Het feestje is om 17.00 uur afgelopen.",
+            "Dan zijn we om 17.15 uur weer thuis met een volle buik want we eten frietjes! 🍟",
+          ],
+        },
+        {
+          label: "Ophalen?",
+          lines: [
+            "Mama's of papa's mogen jou ook om 17.00 uur bij Kids Wonderland ophalen.",
+          ],
+        },
+      ]
+    : [
+        {
+          label: "Wanneer?",
+          lines: [`${dateLabel}${timeLabel ? ` om ${timeLabel} uur` : ""}`],
+        },
+      ];
 
   return (
     <GameCanvas
@@ -52,16 +85,9 @@ export default async function GamePage({
         childName: game.child_name,
         age: game.age,
         dateLabel,
-        // Extra details uit de uitnodiging (alleen ingevuld voor de demo).
-        location: isDemo ? "Kids Wonderland" : undefined,
-        details: isDemo
-          ? [
-              "Na school gaan we samen naar Kids Wonderland!",
-              "Het feestje is om 17.00 uur afgelopen — daarna eten we frietjes! 🍟",
-              "Ophalen mag om 17.00 uur bij Kids Wonderland.",
-            ]
-          : undefined,
-        slogan: isDemo ? "We hebben er zin in!" : undefined,
+        greeting: "Kom jij ook naar mijn kinderfeestje?",
+        sections,
+        slogan: "We hebben er zin in!",
       }}
     />
   );

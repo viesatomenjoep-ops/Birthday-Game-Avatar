@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { TARGET_SCORE, type GameConfig } from "../types";
+import { GAME_DURATION_MS, type GameConfig } from "../types";
 import { playCatchSound } from "../audio";
 
 /**
@@ -11,9 +11,13 @@ export class GameScene extends Phaser.Scene {
   private gifts!: Phaser.Physics.Arcade.Group;
   private catchEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private scoreText!: Phaser.GameObjects.Text;
+  private timerText!: Phaser.GameObjects.Text;
   private glow!: Phaser.GameObjects.Image;
   private spawnTimer!: Phaser.Time.TimerEvent;
+  private countdownTimer!: Phaser.Time.TimerEvent;
+  private endTimer!: Phaser.Time.TimerEvent;
   private score = 0;
+  private remaining = GAME_DURATION_MS / 1000;
   private finished = false;
 
   constructor() {
@@ -25,6 +29,7 @@ export class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.score = 0;
+    this.remaining = GAME_DURATION_MS / 1000;
     this.finished = false;
 
     this.drawBackground(width, height);
@@ -95,17 +100,29 @@ export class GameScene extends Phaser.Scene {
       this.catchGift(gift as Phaser.Physics.Arcade.Image)
     );
 
-    // --- HUD ---
+    // --- HUD: score (links) + aftelklok (rechts) ---
     this.scoreText = this.add
-      .text(width / 2, 28, this.scoreLabel(), {
+      .text(18, 28, this.scoreLabel(), {
         fontFamily: "system-ui, sans-serif",
-        fontSize: "26px",
+        fontSize: "24px",
         fontStyle: "900",
         color: "#ffffff",
         stroke: "#7c2d92",
         strokeThickness: 6,
       })
-      .setOrigin(0.5, 0)
+      .setOrigin(0, 0)
+      .setDepth(10);
+
+    this.timerText = this.add
+      .text(width - 18, 28, this.timeLabel(), {
+        fontFamily: "system-ui, sans-serif",
+        fontSize: "24px",
+        fontStyle: "900",
+        color: "#ffffff",
+        stroke: "#7c2d92",
+        strokeThickness: 6,
+      })
+      .setOrigin(1, 0)
       .setDepth(10);
 
     this.add
@@ -118,6 +135,18 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setDepth(10)
       .setAlpha(0.9);
+
+    // --- Aftellen + einde na 25 seconden ---
+    this.countdownTimer = this.time.addEvent({
+      delay: 1000,
+      repeat: this.remaining - 1,
+      callback: () => {
+        this.remaining = Math.max(0, this.remaining - 1);
+        this.timerText.setText(this.timeLabel());
+        if (this.remaining <= 5) this.timerText.setColor("#ffd97a");
+      },
+    });
+    this.endTimer = this.time.delayedCall(GAME_DURATION_MS, () => this.finishGame());
 
     // Responsief: herpositioneer bij rotatie/resize van de telefoon.
     this.scale.on("resize", this.handleResize, this);
@@ -145,7 +174,11 @@ export class GameScene extends Phaser.Scene {
   // --- helpers ---
 
   private scoreLabel() {
-    return `🎁 ${this.score} / ${TARGET_SCORE}`;
+    return `🎁 ${this.score}`;
+  }
+
+  private timeLabel() {
+    return `⏱ ${this.remaining}`;
   }
 
   private spawnGift() {
@@ -179,16 +212,15 @@ export class GameScene extends Phaser.Scene {
 
     this.score += 1;
     this.scoreText.setText(this.scoreLabel());
-
-    if (this.score >= TARGET_SCORE) {
-      this.finishGame();
-    }
   }
 
-  /** Score bereikt: stop de game loop en start het eindscherm. */
+  /** 25 seconden voorbij: stop de game loop, confetti + HTML-uitnodiging. */
   private finishGame() {
+    if (this.finished) return;
     this.finished = true;
     this.spawnTimer.remove();
+    this.countdownTimer.remove();
+    this.endTimer.remove();
     this.physics.pause();
 
     this.tweens.add({
@@ -198,15 +230,19 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.easeOut",
     });
 
-    this.time.delayedCall(600, () => {
+    // Confetti-scene starten + React laten weten dat de uitnodiging mag komen.
+    this.time.delayedCall(400, () => {
       this.scene.launch("End");
+      const onFinish = this.registry.get("onFinish") as (() => void) | undefined;
+      onFinish?.();
     });
   }
 
   private handleResize(gameSize: Phaser.Structs.Size) {
     if (!this.player) return;
     this.player.y = gameSize.height - 120;
-    this.scoreText.setPosition(gameSize.width / 2, 28);
+    this.scoreText.setPosition(18, 28);
+    this.timerText.setPosition(gameSize.width - 18, 28);
   }
 
   /** Golden-hour pretpark: lucht met zonsondergang, zon, reuzenrad-silhouet. */

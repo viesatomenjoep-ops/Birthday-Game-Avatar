@@ -12,7 +12,8 @@ import { EndScene } from "./scenes/EndScene";
 export function createGame(
   parent: HTMLElement,
   config: GameConfig,
-  onReady: () => void
+  onReady: () => void,
+  onFinish: () => void
 ): Phaser.Game {
   const game = new Phaser.Game({
     type: Phaser.AUTO, // WebGL waar mogelijk, Canvas-fallback
@@ -37,6 +38,9 @@ export function createGame(
   });
 
   game.registry.set("gameConfig", config);
+  // Callback die de GameScene aanroept als de 25s voorbij zijn — de React-laag
+  // toont dan de HTML-uitnodiging.
+  game.registry.set("onFinish", onFinish);
   game.events.once("ready", onReady);
 
   return game;
