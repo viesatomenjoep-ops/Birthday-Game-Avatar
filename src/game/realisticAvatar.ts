@@ -73,6 +73,8 @@ export function buildRigTextures(
     scene.textures.addCanvas(key, canvas);
   };
 
+  const skin = sampleSkin(photo);
+  add("rig-neck", drawNeck(skin));
   add("rig-head", drawHead(photo, pal));
   add("rig-torso", drawTorso(pal));
   add("rig-arm", drawArm(pal));
@@ -111,10 +113,15 @@ function capsule(ctx: Ctx, x: number, y: number, w: number, h: number, top: stri
   ctx.fill();
 }
 
-/** Scherp, realistisch hoofd uit de foto, met accessoire erboven. */
+/**
+ * Scherp, realistisch hoofd: het gezicht uit de foto in een net ovaal masker
+ * (zachte randen, geen harde onderkant), met een subtiele schaduwrand en het
+ * accessoire erboven. Onderaan valt het hoofd samen met de nek.
+ */
 function drawHead(photo: Source, pal: Palette): HTMLCanvasElement {
-  const [c, ctx] = makeCanvas(190, 230);
-  const headArea = { x: 10, y: 46, size: 170 };
+  const CW = 210;
+  const CH = 232;
+  const [c, ctx] = makeCanvas(CW, CH);
 
   const pw = "naturalWidth" in photo ? photo.naturalWidth || photo.width : photo.width;
   const ph = "naturalHeight" in photo ? photo.naturalHeight || photo.height : photo.height;
@@ -122,30 +129,98 @@ function drawHead(photo: Source, pal: Palette): HTMLCanvasElement {
   let sx: number, sy: number, size: number;
   const b = findOpaqueBounds(photo, pw, ph);
   if (b && b.w > 8 && b.h > 8) {
-    size = Math.min(b.w * 0.9, b.h * 0.6);
+    // Iets ruimer, zodat kruin én kin binnen het ovaal vallen.
+    size = Math.min(b.w * 0.95, b.h * 0.66);
     sx = b.x + b.w / 2 - size / 2;
-    sy = b.y + b.h * 0.01;
+    sy = b.y - size * 0.04;
   } else {
-    size = Math.min(pw, ph * 0.55);
+    size = Math.min(pw, ph * 0.6);
     sx = (pw - size) / 2;
     sy = ph * 0.02;
   }
   sx = Math.max(0, Math.min(sx, pw - size));
   sy = Math.max(0, Math.min(sy, ph - size));
 
-  ctx.drawImage(photo, sx, sy, size, size, headArea.x, headArea.y, headArea.size, headArea.size);
+  // Ovaal masker (hoofd-vorm): iets hoger dan breed.
+  const cx = CW / 2;
+  const cy = 108;
+  const rx = 86;
+  const ry = 102;
 
-  // Onderrand zacht laten uitlopen richting de romp.
-  const fade = ctx.createLinearGradient(0, headArea.y + headArea.size * 0.82, 0, headArea.y + headArea.size);
-  fade.addColorStop(0, "rgba(0,0,0,0)");
-  fade.addColorStop(1, "rgba(0,0,0,1)");
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.fillStyle = fade;
-  ctx.fillRect(0, headArea.y + headArea.size * 0.82, c.width, headArea.size * 0.18 + 1);
-  ctx.globalCompositeOperation = "source-over";
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  // Vierkante uitsnede vullend in het ovaal (geen vervorming).
+  const draw = ry * 2;
+  ctx.drawImage(photo, sx, sy, size, size, cx - draw / 2, cy - ry, draw, draw);
+  ctx.restore();
 
-  drawAccessory(ctx, pal.accessory, c.width / 2, headArea.y + 12);
+  // Zachte binnen-schaduw langs de rand → diepte zonder harde ring.
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  const rim = ctx.createRadialGradient(
+    cx, cy, Math.min(rx, ry) * 0.72,
+    cx, cy, Math.max(rx, ry)
+  );
+  rim.addColorStop(0, "rgba(0,0,0,0)");
+  rim.addColorStop(1, "rgba(0,0,0,0.2)");
+  ctx.fillStyle = rim;
+  ctx.fillRect(cx - rx, cy - ry, rx * 2, ry * 2);
+  ctx.restore();
+
+  drawAccessory(ctx, pal.accessory, cx, cy - ry + 14);
   return c;
+}
+
+/** Huidskleurige nek die het hoofd op de schouders laat aansluiten. */
+function drawNeck(skin: string): HTMLCanvasElement {
+  const [c, ctx] = makeCanvas(70, 76);
+  // Nekzuil
+  const g = ctx.createLinearGradient(0, 0, 0, 76);
+  g.addColorStop(0, skin);
+  g.addColorStop(1, shade(skinToHex(skin), -22));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(21, 0, 28, 64, 12);
+  ctx.fill();
+  // Zachte schaduw onder de kin.
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
+  ctx.beginPath();
+  ctx.ellipse(35, 8, 16, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  return c;
+}
+
+/** Sampelt de huidskleur uit het gezicht (wang/kin), met veilige fallback. */
+function sampleSkin(photo: Source): string {
+  const pw = "naturalWidth" in photo ? photo.naturalWidth || photo.width : photo.width;
+  const ph = "naturalHeight" in photo ? photo.naturalHeight || photo.height : photo.height;
+  try {
+    const b = findOpaqueBounds(photo, pw, ph);
+    const px = b ? b.x + b.w / 2 : pw / 2;
+    const py = b ? b.y + b.h * 0.34 : ph * 0.32;
+    const c = document.createElement("canvas");
+    c.width = 1;
+    c.height = 1;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(photo, px - 3, py - 3, 6, 6, 0, 0, 1, 1);
+    const d = ctx.getImageData(0, 0, 1, 1).data;
+    if (d[3] < 60) return "#eabf9a";
+    return `rgb(${d[0]},${d[1]},${d[2]})`;
+  } catch {
+    return "#eabf9a";
+  }
+}
+
+/** rgb()-string → hex (voor de shade-helper). */
+function skinToHex(color: string): string {
+  const m = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!m) return color.startsWith("#") ? color : "#eabf9a";
+  const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
 function drawAccessory(ctx: Ctx, kind: Palette["accessory"], cx: number, topY: number) {
@@ -268,6 +343,18 @@ function drawTorso(pal: Palette): HTMLCanvasElement {
     ctx.fill();
   }
 
+  // Ronde schouders + kraag: dekt de nekbasis netjes af.
+  ctx.fillStyle = pal.top;
+  ctx.beginPath();
+  ctx.ellipse(w / 2 - 30, 12, 20, 14, 0, 0, Math.PI * 2);
+  ctx.ellipse(w / 2 + 30, 12, 20, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Halslijn (donkerder) waar de nek uit komt.
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.beginPath();
+  ctx.ellipse(w / 2, 4, 17, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   // Embleem
   if (pal.emblem === "star") star(ctx, c.width / 2, 42, 16, "#fffbe6");
   if (pal.emblem === "bolt") {
@@ -385,6 +472,7 @@ function findOpaqueBounds(
 
 export class AvatarRig extends Phaser.GameObjects.Container {
   private headImg: Phaser.GameObjects.Image;
+  private neck?: Phaser.GameObjects.Image;
   private frontArm: Phaser.GameObjects.Image;
   private backArm: Phaser.GameObjects.Image;
   private frontLeg: Phaser.GameObjects.Image;
@@ -409,9 +497,15 @@ export class AvatarRig extends Phaser.GameObjects.Container {
     this.backArm = scene.add.image(-36, 2, "rig-arm").setOrigin(0.5, 0.07);
     this.backLeg = scene.add.image(-16, 88, "rig-leg").setOrigin(0.5, 0.06);
     this.frontLeg = scene.add.image(16, 88, "rig-leg").setOrigin(0.5, 0.06);
+    // Nek achter de romp: verbindt hoofd met schouders.
+    if (scene.textures.exists("rig-neck")) {
+      this.neck = scene.add.image(0, -34, "rig-neck").setOrigin(0.5, 0);
+      this.add(this.neck);
+    }
     const torso = scene.add.image(0, -6, "rig-torso").setOrigin(0.5, 0);
     this.frontArm = scene.add.image(36, 2, "rig-arm").setOrigin(0.5, 0.07);
-    this.headImg = scene.add.image(0, 16, "rig-head").setOrigin(0.5, 1).setScale(0.62);
+    // Hoofd hoog genoeg zodat de nek zichtbaar blijft; onderkant valt achter kraag.
+    this.headImg = scene.add.image(0, -12, "rig-head").setOrigin(0.5, 1).setScale(0.66);
 
     this.add([this.backArm, this.backLeg, this.frontLeg, torso, this.frontArm, this.headImg]);
     scene.add.existing(this);
