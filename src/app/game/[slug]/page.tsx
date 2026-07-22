@@ -63,7 +63,7 @@ export default async function GamePage({
   let costume: string | undefined;
 
   if (isDemo) {
-    costume = "clown";
+    costume = "heldin";
     sections = [
       {
         label: "Wanneer?",

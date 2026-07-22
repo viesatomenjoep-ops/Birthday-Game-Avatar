@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { GameConfig } from "../types";
-import { buildCostumeCanvas } from "../costumes";
+import { buildCostumeCanvas, isAnimatable } from "../costumes";
 
 /**
  * Laadt de dynamische avatar (Cloudinary) en genereert alle overige textures
@@ -82,9 +82,26 @@ export class PreloadScene extends Phaser.Scene {
         | HTMLImageElement
         | HTMLCanvasElement;
     }
-    const canvas = buildCostumeCanvas(photo, costume);
-    const texture = this.textures.addCanvas("avatar", canvas);
+
+    // Twee loopframes → bewegend poppetje.
+    const frame0 = buildCostumeCanvas(photo, costume, 0);
+    const texture = this.textures.addCanvas("avatar", frame0);
     texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+    if (isAnimatable(costume)) {
+      const frame1 = buildCostumeCanvas(photo, costume, 1);
+      if (this.textures.exists("avatar-f1")) this.textures.remove("avatar-f1");
+      const t1 = this.textures.addCanvas("avatar-f1", frame1);
+      t1?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+
+      if (this.anims.exists("avatar-walk")) this.anims.remove("avatar-walk");
+      this.anims.create({
+        key: "avatar-walk",
+        frames: [{ key: "avatar" }, { key: "avatar-f1" }],
+        frameRate: 5,
+        repeat: -1,
+      });
+    }
   }
 
   /** Ballonnen in vier feestkleuren met knoopje. */

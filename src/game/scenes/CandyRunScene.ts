@@ -26,12 +26,13 @@ export class CandyRunScene extends BaseGameScene {
     const ground = this.add.rectangle(width / 2, this.groundY + 8, width * 2, 16, 0x000000, 0);
     this.physics.add.existing(ground, true);
 
-    // Rennende avatar links.
+    // Rennende avatar links (met loopanimatie).
     this.glow = this.add.image(width * 0.24, this.groundY - 40, "glow").setScale(0.8).setDepth(4);
     const avatar = this.physics.add
-      .image(width * 0.24, this.groundY - 60, "avatar")
+      .sprite(width * 0.24, this.groundY - 60, "avatar")
       .setDepth(5)
       .setTint(0xffe8cc);
+    this.playWalkAnim(avatar);
     const targetHeight = Math.min(height * 0.2, 170);
     avatar.setScale(targetHeight / avatar.height);
     avatar.setGravityY(1800);

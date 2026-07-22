@@ -38,7 +38,7 @@ function validateFields(formData: FormData): {
   return { errors, values: { childName, age, partyDate, partyTime } };
 }
 
-const ALLOWED_COSTUMES = ["none", "prinses", "clown", "piraat"];
+const ALLOWED_COSTUMES = ["none", "heldin", "held", "prinses", "clown", "piraat"];
 
 function parseCostume(formData: FormData): string {
   const c = String(formData.get("costume") ?? "none").trim();

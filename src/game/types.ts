@@ -30,6 +30,8 @@ export type CostumeMeta = { id: string; label: string; emoji: string };
 
 export const COSTUMES: CostumeMeta[] = [
   { id: "none", label: "Geen kostuum", emoji: "🙂" },
+  { id: "heldin", label: "Superheldin", emoji: "🦸‍♀️" },
+  { id: "held", label: "Superheld", emoji: "🦸" },
   { id: "prinses", label: "Prinses", emoji: "👑" },
   { id: "clown", label: "Clown", emoji: "🤡" },
   { id: "piraat", label: "Piraat", emoji: "🏴‍☠️" },

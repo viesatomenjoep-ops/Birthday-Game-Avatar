@@ -15,9 +15,14 @@ const HEAD = { x: 26, y: 4, w: 68, h: 68 };
 type Ctx = CanvasRenderingContext2D;
 type Source = HTMLImageElement | HTMLCanvasElement;
 
+/**
+ * `phase` (0 of 1) is het loopframe: benen/armen wisselen van stand, zodat
+ * Phaser er een bewegend poppetje van kan maken (2-frame walk-animatie).
+ */
 export function buildCostumeCanvas(
   photo: Source,
-  costumeId: string
+  costumeId: string,
+  phase = 0
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -27,12 +32,17 @@ export function buildCostumeCanvas(
 
   const costume = COSTUME_DRAWERS[costumeId];
 
-  costume?.behindHead?.(ctx);
-  costume?.body?.(ctx);
+  costume?.behindHead?.(ctx, phase);
+  costume?.body?.(ctx, phase);
   drawPixelatedHead(ctx, photo);
-  costume?.overHead?.(ctx);
+  costume?.overHead?.(ctx, phase);
 
   return canvas;
+}
+
+/** Heeft dit kostuum animatieframes? */
+export function isAnimatable(costumeId: string): boolean {
+  return costumeId in COSTUME_DRAWERS;
 }
 
 /** Knipt het hoofd strak uit de foto en tekent het gepixeld op het lijf. */
@@ -137,29 +147,31 @@ function px(ctx: Ctx, x: number, y: number, w: number, h: number, color: string)
 const NECK_Y = HEAD.y + HEAD.h - 4; // ~54
 
 type Drawer = {
-  behindHead?: (ctx: Ctx) => void;
-  body?: (ctx: Ctx) => void;
-  overHead?: (ctx: Ctx) => void;
+  behindHead?: (ctx: Ctx, phase: number) => void;
+  body?: (ctx: Ctx, phase: number) => void;
+  overHead?: (ctx: Ctx, phase: number) => void;
 };
 
 const COSTUME_DRAWERS: Record<string, Drawer> = {
   prinses: {
-    body(ctx) {
+    body(ctx, phase) {
+      const sway = phase ? 3 : -3; // jurk wiegt zachtjes heen en weer
       // Armen
-      px(ctx, 26, NECK_Y + 8, 12, 34, "#ffd9b3");
-      px(ctx, 82, NECK_Y + 8, 12, 34, "#ffd9b3");
+      px(ctx, 26, NECK_Y + 8 + (phase ? 2 : 0), 12, 34, "#ffd9b3");
+      px(ctx, 82, NECK_Y + 8 + (phase ? 0 : 2), 12, 34, "#ffd9b3");
       // Lijfje
       px(ctx, 44, NECK_Y, 32, 26, "#ff9ec4");
       px(ctx, 44, NECK_Y, 32, 6, "#ffffff");
-      // Wijd uitlopende jurk (pixel-trap)
+      // Wijd uitlopende jurk (pixel-trap) met sway in de onderste rijen
       for (let i = 0; i < 6; i++) {
         const w = 34 + i * 10;
-        px(ctx, W / 2 - w / 2, NECK_Y + 26 + i * 12, w, 13, "#ff77ad");
+        const shift = i >= 3 ? sway * ((i - 2) / 3) : 0;
+        px(ctx, W / 2 - w / 2 + shift, NECK_Y + 26 + i * 12, w, 13, "#ff77ad");
       }
       // Glitters
       px(ctx, 52, NECK_Y + 40, 4, 4, "#fff3b0");
       px(ctx, 66, NECK_Y + 58, 4, 4, "#fff3b0");
-      px(ctx, 44, NECK_Y + 72, 4, 4, "#fff3b0");
+      px(ctx, 44 + sway, NECK_Y + 72, 4, 4, "#fff3b0");
     },
     overHead(ctx) {
       // Kroon (breed over het hele hoofd)
@@ -179,12 +191,14 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       px(ctx, HEAD.x - 8, HEAD.y + 4, 12, 14, "#ff9c4a");
       px(ctx, HEAD.x + HEAD.w - 4, HEAD.y + 4, 12, 14, "#ff9c4a");
     },
-    body(ctx) {
-      // Armen
-      px(ctx, 24, NECK_Y + 10, 12, 34, "#2e86de");
-      px(ctx, 84, NECK_Y + 10, 12, 34, "#2e86de");
-      px(ctx, 24, NECK_Y + 40, 12, 8, "#ffffff"); // handschoen
-      px(ctx, 84, NECK_Y + 40, 12, 8, "#ffffff");
+    body(ctx, phase) {
+      const la = phase ? 4 : 0; // linkerarm/been omhoog in frame 1
+      const ra = phase ? 0 : 4;
+      // Armen (wisselen per loopframe)
+      px(ctx, 24, NECK_Y + 10 - la, 12, 34, "#2e86de");
+      px(ctx, 84, NECK_Y + 10 - ra, 12, 34, "#2e86de");
+      px(ctx, 24, NECK_Y + 40 - la, 12, 8, "#ffffff"); // handschoen
+      px(ctx, 84, NECK_Y + 40 - ra, 12, 8, "#ffffff");
       // Ruchekraag
       for (let i = 0; i < 6; i++) {
         px(ctx, 38 + i * 8, NECK_Y - 2, 8, 8, i % 2 ? "#ffd166" : "#ff5d8f");
@@ -196,11 +210,11 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       for (let i = 0; i < 6; i++) {
         px(ctx, 46 + (i % 3) * 12, NECK_Y + 14 + Math.floor(i / 3) * 22, 8, 8, dots[i % 3]);
       }
-      // Benen + grote schoenen
-      px(ctx, 44, NECK_Y + 66, 14, 36, "#2e86de");
-      px(ctx, 62, NECK_Y + 66, 14, 36, "#2e86de");
-      px(ctx, 38, NECK_Y + 98, 22, 10, "#e63946");
-      px(ctx, 60, NECK_Y + 98, 22, 10, "#e63946");
+      // Benen + grote schoenen (loopstand wisselt)
+      px(ctx, 44, NECK_Y + 66 - la, 14, 36, "#2e86de");
+      px(ctx, 62, NECK_Y + 66 - ra, 14, 36, "#2e86de");
+      px(ctx, 38, NECK_Y + 98 - la, 22, 10, "#e63946");
+      px(ctx, 60, NECK_Y + 98 - ra, 22, 10, "#e63946");
     },
     overHead(ctx) {
       // Klein puntmutsje (gecentreerd op het hoofd)
@@ -211,10 +225,12 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
   },
 
   piraat: {
-    body(ctx) {
+    body(ctx, phase) {
+      const la = phase ? 4 : 0;
+      const ra = phase ? 0 : 4;
       // Armen
-      px(ctx, 26, NECK_Y + 8, 12, 34, "#6b3f2b");
-      px(ctx, 82, NECK_Y + 8, 12, 34, "#6b3f2b");
+      px(ctx, 26, NECK_Y + 8 - la, 12, 34, "#6b3f2b");
+      px(ctx, 82, NECK_Y + 8 - ra, 12, 34, "#6b3f2b");
       // Wit hemd
       px(ctx, 44, NECK_Y, 32, 30, "#f5f0e6");
       // Jas
@@ -223,11 +239,11 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       // Riem + gesp
       px(ctx, 40, NECK_Y + 34, 40, 8, "#3a2a1a");
       px(ctx, 56, NECK_Y + 34, 8, 8, "#ffd166");
-      // Benen + laarzen
-      px(ctx, 46, NECK_Y + 62, 12, 34, "#3a2a1a");
-      px(ctx, 62, NECK_Y + 62, 12, 34, "#3a2a1a");
-      px(ctx, 42, NECK_Y + 90, 18, 10, "#1a120b");
-      px(ctx, 60, NECK_Y + 90, 18, 10, "#1a120b");
+      // Benen + laarzen (loopstand wisselt)
+      px(ctx, 46, NECK_Y + 62 - la, 12, 34, "#3a2a1a");
+      px(ctx, 62, NECK_Y + 62 - ra, 12, 34, "#3a2a1a");
+      px(ctx, 42, NECK_Y + 90 - la, 18, 10, "#1a120b");
+      px(ctx, 60, NECK_Y + 90 - ra, 18, 10, "#1a120b");
     },
     overHead(ctx) {
       // Piratenhoed (breder dan het hoofd)
@@ -236,6 +252,94 @@ const COSTUME_DRAWERS: Record<string, Drawer> = {
       // Doodshoofd
       px(ctx, HEAD.x + 30, HEAD.y - 14, 8, 6, "#f5f0e6");
       px(ctx, HEAD.x + 31, HEAD.y - 8, 6, 3, "#f5f0e6");
+    },
+  },
+
+  // Originele gouden superheldin (goud harnas + rode cape + ster) — eigen
+  // ontwerp, géén bestaand merkpersonage.
+  heldin: {
+    behindHead(ctx, phase) {
+      // Rode cape die zachtjes wappert
+      const flare = phase ? 8 : 2;
+      px(ctx, 30 - flare, NECK_Y - 2, 12 + flare, 92, "#c1121f");
+      px(ctx, 78, NECK_Y - 2, 12 + flare, 92, "#c1121f");
+      px(ctx, 34, NECK_Y - 4, 52, 90, "#e5383b");
+      // Lang donker haar naast het hoofd
+      px(ctx, HEAD.x - 10, HEAD.y + 8, 12, 44, "#3a2a1a");
+      px(ctx, HEAD.x + HEAD.w - 2, HEAD.y + 8, 12, 44, "#3a2a1a");
+    },
+    body(ctx, phase) {
+      const la = phase ? 4 : 0;
+      const ra = phase ? 0 : 4;
+      // Armen: goud met polsbanden
+      px(ctx, 26, NECK_Y + 6 - la, 12, 34, "#d4a017");
+      px(ctx, 82, NECK_Y + 6 - ra, 12, 34, "#d4a017");
+      px(ctx, 26, NECK_Y + 32 - la, 12, 8, "#f6c445");
+      px(ctx, 82, NECK_Y + 32 - ra, 12, 8, "#f6c445");
+      // Gouden harnas-torso met glans
+      px(ctx, 42, NECK_Y, 36, 40, "#d4a017");
+      px(ctx, 44, NECK_Y + 2, 10, 30, "#f6c445"); // glansstrook
+      // Ster-embleem op de borst
+      px(ctx, 56, NECK_Y + 10, 8, 8, "#fff3b0");
+      px(ctx, 58, NECK_Y + 6, 4, 4, "#fff3b0");
+      px(ctx, 52, NECK_Y + 14, 4, 4, "#fff3b0");
+      px(ctx, 64, NECK_Y + 14, 4, 4, "#fff3b0");
+      // Rode gordel
+      px(ctx, 42, NECK_Y + 40, 36, 8, "#c1121f");
+      px(ctx, 56, NECK_Y + 40, 8, 8, "#f6c445");
+      // Benen: goud, loopstand wisselt
+      px(ctx, 46, NECK_Y + 48 - la, 12, 40, "#d4a017");
+      px(ctx, 62, NECK_Y + 48 - ra, 12, 40, "#d4a017");
+      // Gouden laarzen
+      px(ctx, 42, NECK_Y + 84 - la, 18, 12, "#f6c445");
+      px(ctx, 60, NECK_Y + 84 - ra, 18, 12, "#f6c445");
+    },
+    overHead(ctx) {
+      // Gouden tiara met ster
+      px(ctx, HEAD.x + 6, HEAD.y - 8, 56, 8, "#f6c445");
+      px(ctx, HEAD.x + 30, HEAD.y - 14, 8, 8, "#fff3b0");
+    },
+  },
+
+  // Mannelijke gouden actieheld — bredere schouders, blauwe cape.
+  held: {
+    behindHead(ctx, phase) {
+      const flare = phase ? 8 : 2;
+      px(ctx, 26 - flare, NECK_Y - 2, 14 + flare, 90, "#1d3557");
+      px(ctx, 80, NECK_Y - 2, 14 + flare, 90, "#1d3557");
+      px(ctx, 32, NECK_Y - 4, 56, 88, "#2b4d7e");
+    },
+    body(ctx, phase) {
+      const la = phase ? 4 : 0;
+      const ra = phase ? 0 : 4;
+      // Brede schouderplaten
+      px(ctx, 30, NECK_Y - 2, 20, 12, "#f6c445");
+      px(ctx, 70, NECK_Y - 2, 20, 12, "#f6c445");
+      // Armen: goud met vuisten
+      px(ctx, 24, NECK_Y + 8 - la, 14, 34, "#d4a017");
+      px(ctx, 82, NECK_Y + 8 - ra, 14, 34, "#d4a017");
+      px(ctx, 24, NECK_Y + 38 - la, 14, 8, "#b8860b");
+      px(ctx, 82, NECK_Y + 38 - ra, 14, 8, "#b8860b");
+      // Gouden harnas-torso (breder)
+      px(ctx, 40, NECK_Y, 40, 42, "#d4a017");
+      px(ctx, 42, NECK_Y + 2, 10, 32, "#f6c445");
+      // Bliksem-embleem
+      px(ctx, 58, NECK_Y + 6, 6, 10, "#fff3b0");
+      px(ctx, 54, NECK_Y + 14, 6, 10, "#fff3b0");
+      px(ctx, 60, NECK_Y + 22, 6, 10, "#fff3b0");
+      // Donkere gordel
+      px(ctx, 40, NECK_Y + 42, 40, 8, "#1d3557");
+      px(ctx, 56, NECK_Y + 42, 8, 8, "#f6c445");
+      // Benen: donkergoud, loopstand wisselt
+      px(ctx, 44, NECK_Y + 50 - la, 14, 38, "#b8860b");
+      px(ctx, 62, NECK_Y + 50 - ra, 14, 38, "#b8860b");
+      // Laarzen
+      px(ctx, 40, NECK_Y + 84 - la, 20, 12, "#f6c445");
+      px(ctx, 60, NECK_Y + 84 - ra, 20, 12, "#f6c445");
+    },
+    overHead(ctx) {
+      // Gouden hoofdband
+      px(ctx, HEAD.x + 4, HEAD.y - 6, 60, 7, "#f6c445");
     },
   },
 };

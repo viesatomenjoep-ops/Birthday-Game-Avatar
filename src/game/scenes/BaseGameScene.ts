@@ -13,11 +13,13 @@ export abstract class BaseGameScene extends Phaser.Scene {
   protected remaining = GAME_DURATION_MS / 1000;
   protected finished = false;
 
-  protected player?: Phaser.Physics.Arcade.Image;
+  protected player?: Phaser.Physics.Arcade.Sprite;
   protected glow?: Phaser.GameObjects.Image;
 
   private scoreText!: Phaser.GameObjects.Text;
   private timerText!: Phaser.GameObjects.Text;
+  private scorePill!: Phaser.GameObjects.Graphics;
+  private timerPill!: Phaser.GameObjects.Graphics;
   private countdownTimer!: Phaser.Time.TimerEvent;
   private endTimer!: Phaser.Time.TimerEvent;
 
@@ -63,6 +65,7 @@ export abstract class BaseGameScene extends Phaser.Scene {
   protected addScore(amount = 1) {
     this.score += amount;
     this.scoreText.setText(`🎁 ${this.score}`);
+    this.redrawHudPills();
   }
 
   /** Avatar onderaan die je met touch sleept (vang-spellen). */
@@ -71,9 +74,10 @@ export abstract class BaseGameScene extends Phaser.Scene {
     this.glow = this.add.image(width / 2, height - 120, "glow").setDepth(4);
 
     const player = this.physics.add
-      .image(width / 2, height - 120, "avatar")
+      .sprite(width / 2, height - 120, "avatar")
       .setDepth(5)
       .setCollideWorldBounds(true);
+    this.playWalkAnim(player);
 
     const targetHeight = Math.min(height * 0.26, 230);
     const scaleFactor = targetHeight / player.height;
@@ -110,9 +114,10 @@ export abstract class BaseGameScene extends Phaser.Scene {
   protected createDecorAvatar(x: number, y: number, heightRatio = 0.18) {
     const { height } = this.scale;
     this.glow = this.add.image(x, y + 10, "glow").setScale(0.9).setDepth(4);
-    const avatar = this.add.image(x, y, "avatar").setDepth(5).setTint(0xffe8cc);
+    const avatar = this.add.sprite(x, y, "avatar").setDepth(5).setTint(0xffe8cc);
     const targetHeight = Math.min(height * heightRatio, 190);
     avatar.setScale(targetHeight / avatar.height);
+    this.playWalkAnim(avatar);
     // Zacht wiegen zodat de avatar "meeviert".
     this.tweens.add({
       targets: avatar,
@@ -125,29 +130,55 @@ export abstract class BaseGameScene extends Phaser.Scene {
     return avatar;
   }
 
+  /** Start de 2-frame loopanimatie als het kostuum die heeft. */
+  protected playWalkAnim(sprite: Phaser.GameObjects.Sprite) {
+    if (this.anims.exists("avatar-walk")) {
+      sprite.play("avatar-walk");
+    }
+  }
+
   private createHud() {
     const { width, height } = this.scale;
 
+    // Score linksboven en klok rechtsboven, elk op een donkere pil zodat de
+    // cijfers op elke achtergrond (zon, vlaggetjes) perfect leesbaar zijn.
+    this.scorePill = this.add.graphics().setDepth(9);
+    this.timerPill = this.add.graphics().setDepth(9);
+
     this.scoreText = this.add
-      .text(18, 28, `🎁 ${this.score}`, hudStyle())
+      .text(26, 20, `🎁 ${this.score}`, hudStyle())
       .setOrigin(0, 0)
-      .setDepth(10);
+      .setDepth(10)
+      .setResolution(2);
 
     this.timerText = this.add
-      .text(width - 18, 28, `⏱ ${this.remaining}`, hudStyle())
+      .text(width - 26, 20, `⏱ ${this.remaining}`, hudStyle())
       .setOrigin(1, 0)
-      .setDepth(10);
+      .setDepth(10)
+      .setResolution(2);
 
-    this.add
-      .text(width / 2, height - 24, this.instruction(), {
+    this.redrawHudPills();
+
+    const instr = this.add
+      .text(width / 2, height - 22, this.instruction(), {
         fontFamily: "system-ui, sans-serif",
         fontSize: "15px",
-        fontStyle: "700",
-        color: "#ffe8cc",
+        fontStyle: "800",
+        color: "#ffffff",
+        align: "center",
+        wordWrap: { width: width - 48 },
       })
       .setOrigin(0.5, 1)
       .setDepth(10)
-      .setAlpha(0.9);
+      .setResolution(2);
+    const ip = this.add.graphics().setDepth(9);
+    drawPillBehind(ip, instr, 14, 8, 0.55);
+  }
+
+  /** Tekent de donkere pillen strak achter de (veranderende) HUD-teksten. */
+  private redrawHudPills() {
+    drawPillBehind(this.scorePill, this.scoreText, 14, 8, 0.7);
+    drawPillBehind(this.timerPill, this.timerText, 14, 8, 0.7);
   }
 
   private startTimer() {
@@ -158,6 +189,7 @@ export abstract class BaseGameScene extends Phaser.Scene {
         this.remaining = Math.max(0, this.remaining - 1);
         this.timerText.setText(`⏱ ${this.remaining}`);
         if (this.remaining <= 5) this.timerText.setColor("#ffd97a");
+        this.redrawHudPills();
       },
     });
     this.endTimer = this.time.delayedCall(GAME_DURATION_MS, () =>
@@ -189,8 +221,9 @@ export abstract class BaseGameScene extends Phaser.Scene {
   }
 
   private handleResize(gameSize: Phaser.Structs.Size) {
-    this.scoreText?.setPosition(18, 28);
-    this.timerText?.setPosition(gameSize.width - 18, 28);
+    this.scoreText?.setPosition(26, 20);
+    this.timerText?.setPosition(gameSize.width - 26, 20);
+    if (this.scoreText && this.timerText) this.redrawHudPills();
   }
 }
 
@@ -200,7 +233,25 @@ function hudStyle(): Phaser.Types.GameObjects.Text.TextStyle {
     fontSize: "24px",
     fontStyle: "900",
     color: "#ffffff",
-    stroke: "#7c2d92",
-    strokeThickness: 6,
   };
+}
+
+/** Donkere afgeronde pil strak achter een tekst-object. */
+function drawPillBehind(
+  g: Phaser.GameObjects.Graphics,
+  text: Phaser.GameObjects.Text,
+  padX: number,
+  padY: number,
+  alpha: number
+) {
+  const b = text.getBounds();
+  g.clear();
+  g.fillStyle(0x1a0f30, alpha);
+  g.fillRoundedRect(
+    b.x - padX,
+    b.y - padY,
+    b.width + padX * 2,
+    b.height + padY * 2,
+    (b.height + padY * 2) / 2
+  );
 }

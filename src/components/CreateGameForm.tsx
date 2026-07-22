@@ -252,7 +252,7 @@ export default function CreateGameForm() {
           <Wand2 className="h-4 w-4 text-brand-500" />
           Kies een kostuum (pixel-art poppetje)
         </label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {COSTUMES.map((c) => (
             <button
               key={c.id}
