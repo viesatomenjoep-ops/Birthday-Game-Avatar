@@ -6,9 +6,9 @@ import {
   Cake,
   CalendarDays,
   Clock,
+  Gamepad2,
   Loader2,
   PartyPopper,
-  Sparkles,
   User,
 } from "lucide-react";
 import PhotoDropzone from "./PhotoDropzone";
@@ -168,7 +168,7 @@ export default function CreateGameForm() {
           </>
         ) : (
           <>
-            <Sparkles className="h-5 w-5 transition group-hover:rotate-12" />
+            <Gamepad2 className="h-5 w-5 transition group-hover:rotate-12" />
             Maak de verjaardagsgame
             <PartyPopper className="h-5 w-5" />
           </>
