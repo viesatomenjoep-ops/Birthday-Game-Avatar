@@ -34,3 +34,6 @@ next-env.d.ts
 # lokale dev-opslag (fallback zonder cloud-keys)
 /.data/
 /public/avatars/
+
+# lokaal env-blok voor Vercel (bevat secrets — nooit committen)
+/vercel-env.txt
