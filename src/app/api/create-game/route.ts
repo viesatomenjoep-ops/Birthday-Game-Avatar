@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase";
-import { uploadAvatar } from "@/lib/cloudinary";
+import { storeAvatar, saveGame } from "@/lib/store";
 import { removeBackground } from "@/lib/remove-bg";
 import { generateSlug } from "@/lib/slug";
 
@@ -80,12 +79,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Transparante PNG naar Cloudinary (on-the-fly optimalisatie)
+    // 4. Avatar opslaan (Cloudinary indien geconfigureerd, anders lokaal)
     let avatarUrl: string;
     try {
-      avatarUrl = await uploadAvatar(transparentPng, slug);
+      avatarUrl = await storeAvatar(transparentPng, slug);
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      console.error("Avatar store error:", error);
       return NextResponse.json(
         {
           ok: false,
@@ -95,19 +94,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Record aanmaken in Supabase
-    const supabase = createServiceClient();
-    const { error: dbError } = await supabase.from("games").insert({
-      slug,
-      child_name: values.childName,
-      age: values.age,
-      party_date: values.partyDate,
-      party_time: values.partyTime,
-      avatar_url: avatarUrl,
-    });
-
-    if (dbError) {
-      console.error("Supabase insert error:", dbError.message);
+    // 5. Record opslaan (Supabase indien geconfigureerd, anders lokaal)
+    try {
+      await saveGame({
+        slug,
+        child_name: values.childName,
+        age: values.age,
+        party_date: values.partyDate,
+        party_time: values.partyTime,
+        avatar_url: avatarUrl,
+      });
+    } catch (error) {
+      console.error("Save game error:", error);
       return NextResponse.json(
         {
           ok: false,

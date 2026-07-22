@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getGameBySlug } from "@/lib/supabase";
+import { getGame } from "@/lib/store";
 import GameCanvas from "@/components/GameCanvas";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const game = await getGameBySlug(params.slug);
+  const game = await getGame(params.slug);
   if (!game) return { title: "Game niet gevonden" };
   return {
     title: `🎉 ${game.child_name} wordt ${game.age}! Speel de uitnodiging`,
@@ -34,7 +34,7 @@ export default async function GamePage({
         party_time: "17:00",
         avatar_url: "/demo-avatar.png", // bestaat niet → vrolijke fallback-avatar
       }
-    : await getGameBySlug(params.slug);
+    : await getGame(params.slug);
   if (!game) notFound();
 
   const partyDate = new Date(`${game.party_date}T00:00:00`);

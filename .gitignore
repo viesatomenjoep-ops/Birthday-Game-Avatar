@@ -30,3 +30,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lokale dev-opslag (fallback zonder cloud-keys)
+/.data/
+/public/avatars/

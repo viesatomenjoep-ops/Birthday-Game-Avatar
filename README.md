@@ -15,8 +15,25 @@ Gebouwd met de **Viesa Automations Stack**: Next.js 14 (App Router) · Tailwind 
 
 ```bash
 npm install
-cp .env.example .env.local   # vul je keys in
 npm run dev
+```
+
+### Werkt direct zonder keys (lokale dev-modus)
+
+De hele flow — foto uploaden → succes-dashboard → speelbare game — werkt
+**zonder** dat je Supabase, Cloudinary of remove.bg hoeft in te stellen:
+
+- Geen Cloudinary-keys → de avatar wordt lokaal opgeslagen in `public/avatars/`.
+- Geen Supabase-keys → game-records gaan naar `.data/games.json`.
+- Geen remove.bg-key → de originele foto wordt gebruikt (geen uitsnijding).
+
+Zodra je de echte keys invult in `.env.local`, schakelt de app automatisch over
+naar Cloudinary + Supabase. **Let op:** de lokale modus werkt alleen op je eigen
+machine; op Vercel is het bestandssysteem read-only, dus daar zijn de cloud-keys
+verplicht.
+
+```bash
+cp .env.example .env.local   # optioneel: vul je keys in voor productie-gedrag
 ```
 
 ### Environment variables

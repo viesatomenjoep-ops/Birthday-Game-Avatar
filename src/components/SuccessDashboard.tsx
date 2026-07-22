@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   Copy,
@@ -22,9 +22,15 @@ function WhatsAppIcon({ className }: { className?: string }) {
 export default function SuccessDashboard({ game }: { game: GameRecord }) {
   const [copied, setCopied] = useState(false);
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (typeof window !== "undefined" ? window.location.origin : "");
+  // Server en eerste client-render moeten identiek zijn (anders hydration
+  // mismatch). We starten met de env-URL (of leeg) en vullen na mount de
+  // echte window.origin aan als er geen NEXT_PUBLIC_APP_URL is ingesteld.
+  const [baseUrl, setBaseUrl] = useState(process.env.NEXT_PUBLIC_APP_URL ?? "");
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_APP_URL) {
+      setBaseUrl(window.location.origin);
+    }
+  }, []);
   const gameUrl = `${baseUrl}/game/${game.slug}`;
 
   const partyDate = new Date(`${game.party_date}T${game.party_time}`);
